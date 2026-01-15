@@ -97,7 +97,7 @@ export const UomViewer: React.FC = () => {
             const { icon: Icon, color, label } = getCategoryConfig(cat.id);
             
             return (
-                <Grid item xs={12} md={6} xl={4} key={cat.id}>
+                <Grid xs={12} md={6} xl={4} key={cat.id}>
                     <Card 
                         elevation={0}
                         sx={{ 

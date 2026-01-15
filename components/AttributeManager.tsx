@@ -128,7 +128,7 @@ export const AttributeManager: React.FC<Props> = ({ products, attributeConfigs, 
            <DialogContent sx={{ bgcolor: 'background.default', p: 3 }}>
                <Grid container spacing={2}>
                    {associatedProducts.map(p => (
-                       <Grid item xs={12} md={6} key={p.id}>
+                       <Grid xs={12} md={6} key={p.id}>
                            <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1, '&:hover': { borderColor: 'primary.main', boxShadow: 1 } }}>
                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                    <Box sx={{ display: 'flex', gap: 2 }}>
@@ -194,7 +194,7 @@ export const AttributeManager: React.FC<Props> = ({ products, attributeConfigs, 
       <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
         <Grid container spacing={3}>
             {sortedAttributes.map((attr) => (
-                <Grid item xs={12} md={6} xl={4} key={attr.name}>
+                <Grid xs={12} md={6} xl={4} key={attr.name}>
                     <Paper variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         {/* Header */}
                         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

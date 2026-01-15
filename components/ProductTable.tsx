@@ -35,41 +35,72 @@ interface VisibleColumns {
 }
 
 // --- Smart Image Component ---
-// Tries to load image from: 1. Base64 (User Upload) -> 2. Local File by Code -> 3. Local File by Name -> 4. Placeholder
+// Tries to load image from: 
+// 1. Base64 (User Upload) 
+// 2. Local File by Exact Code (png/jpg/jpeg/webp)
+// 3. Local File by Base Code (e.g. MAT-BNR-180 from MAT-BNR-180-110)
+// 4. Local File by Name
+// 5. Placeholder
 const SmartImage = ({ product, onClick, canWrite }: { product: ParsedProduct, onClick: () => void, canWrite: boolean }) => {
     const [imgSrc, setImgSrc] = useState<string | null>(null);
-    const [hasError, setHasError] = useState(false);
-    const [attemptedName, setAttemptedName] = useState(false);
+    const [candidates, setCandidates] = useState<string[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
-        setHasError(false);
-        setAttemptedName(false);
+        // Reset state when product changes
+        setImgSrc(null);
+        setCurrentIndex(0);
 
+        const exts = ['png', 'jpg', 'jpeg', 'webp'];
+        const list: string[] = [];
+
+        // 1. Base64 / URL from data (Highest Priority)
         if (product.image) {
-            // Priority 1: Direct Base64/Url match
-            setImgSrc(product.image.startsWith('data:') ? product.image : `data:image/png;base64,${product.image}`);
-        } else if (product.defaultCode) {
-            // Priority 2: Auto-discovery by Code (e.g., public/product_images/CODE123.jpg)
-            // We assume the user creates a folder named 'product_images' in the public directory
-            const safeCode = product.defaultCode.trim(); 
-            setImgSrc(`/product_images/${safeCode}.jpg`);
-        } else if (product.templateName) {
-             // Priority 3: Auto-discovery by Name (Start here if no code)
-             setImgSrc(`/product_images/${product.templateName.trim()}.jpg`);
-             setAttemptedName(true);
-        } else {
-            setHasError(true);
+            list.push(product.image.startsWith('data:') ? product.image : `data:image/png;base64,${product.image}`);
+        }
+
+        // Helper to push variants for a given name/code
+        const addVariants = (base: string) => {
+            const safe = base.trim();
+            if (!safe) return;
+            exts.forEach(ext => list.push(`/product_images/${safe}.${ext}`));
+        };
+
+        // 2. Internal Reference
+        if (product.defaultCode) {
+            // 2.1 Exact Match
+            addVariants(product.defaultCode);
+            
+            // 2.2 Try "Base" Code Family (e.g. if code is MAT-BNR-180-110, try MAT-BNR-180)
+            // This allows one image to serve multiple size variants
+            if (product.defaultCode.includes('-')) {
+                const parts = product.defaultCode.split('-');
+                if (parts.length > 1) {
+                    // Remove last part (often size or dimension)
+                    const baseCode = parts.slice(0, -1).join('-');
+                    addVariants(baseCode);
+                }
+            }
+        }
+
+        // 3. Product Name (Fallback)
+        if (product.templateName) {
+            addVariants(product.templateName);
+        }
+
+        setCandidates(list);
+        if (list.length > 0) {
+            setImgSrc(list[0]);
         }
     }, [product.image, product.defaultCode, product.templateName]);
 
     const handleError = () => {
-        if (!attemptedName && product.templateName && imgSrc && !imgSrc.includes(product.templateName)) {
-            // If failed by Code, try by Name
-            setImgSrc(`/product_images/${product.templateName.trim()}.jpg`);
-            setAttemptedName(true);
+        const next = currentIndex + 1;
+        if (next < candidates.length) {
+            setCurrentIndex(next);
+            setImgSrc(candidates[next]);
         } else {
-            // If failed by Name (or both), show placeholder
-            setHasError(true);
+            setImgSrc(null); // Give up, show placeholder
         }
     };
 
@@ -88,7 +119,7 @@ const SmartImage = ({ product, onClick, canWrite }: { product: ParsedProduct, on
                 '&:hover .upload-overlay': { opacity: 1 }
             }}
         >
-            {!hasError && imgSrc ? (
+            {imgSrc ? (
                 <img 
                     src={imgSrc} 
                     alt="" 

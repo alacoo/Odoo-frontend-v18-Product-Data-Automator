@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { ParsedProduct, ActiveTab } from '../types';
@@ -316,7 +317,7 @@ export const TemplateManager: React.FC<Props> = ({ products, onUpdateTemplate, o
         ) : (
             <Grid container spacing={2}>
                 {templates.map((tmpl) => (
-                    <Grid item xs={12} md={6} xl={4} key={tmpl.name}>
+                    <Grid xs={12} md={6} xl={4} key={tmpl.name}>
                         <Card 
                             variant="outlined" 
                             sx={{ 
@@ -332,7 +333,7 @@ export const TemplateManager: React.FC<Props> = ({ products, onUpdateTemplate, o
                                 <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
                                     <TextField label="Template Name" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} fullWidth size="small" />
                                     <Grid container spacing={2}>
-                                        <Grid item xs={6}>
+                                        <Grid xs={6}>
                                             <FormControl fullWidth size="small">
                                                 <InputLabel>Type</InputLabel>
                                                 <Select label="Type" value={editForm.type} onChange={(e) => setEditForm({...editForm, type: e.target.value})}>
@@ -342,7 +343,7 @@ export const TemplateManager: React.FC<Props> = ({ products, onUpdateTemplate, o
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        <Grid item xs={6}>
+                                        <Grid xs={6}>
                                             <FormControl fullWidth size="small">
                                                 <InputLabel>Tracking</InputLabel>
                                                 <Select label="Tracking" value={editForm.tracking} onChange={(e) => setEditForm({...editForm, tracking: e.target.value})}>
@@ -394,7 +395,7 @@ export const TemplateManager: React.FC<Props> = ({ products, onUpdateTemplate, o
                                         <Divider sx={{ my: 1.5 }} />
 
                                         <Grid container spacing={2}>
-                                            <Grid item xs={6}>
+                                            <Grid xs={6}>
                                                 <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
                                                     <DollarSign size={12} /> Price Range
                                                 </Typography>
@@ -404,7 +405,7 @@ export const TemplateManager: React.FC<Props> = ({ products, onUpdateTemplate, o
                                                         : `${formatPrice(tmpl.minPrice)} - ${formatPrice(tmpl.maxPrice)}`}
                                                 </Typography>
                                             </Grid>
-                                            <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                                            <Grid xs={6} sx={{ textAlign: 'right' }}>
                                                 <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" justifyContent="flex-end" gap={0.5}>
                                                     <Ruler size={12} /> UOM
                                                 </Typography>

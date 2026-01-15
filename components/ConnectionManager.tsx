@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { OdooConfig, ParsedProduct, SystemHealthReport, PreCheckResult, SyncCapabilities } from '../types';
 import { authenticateOdoo, fetchOdooProducts, fetchOdooCurrencies, checkSystemHealth, runSyncPreCheck } from '../services/odooService';
@@ -338,7 +339,7 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
               </Typography>
 
               <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                       <TextField
                           label="رابط الخادم (Server URL)"
                           placeholder="https://odoo.example.com"
@@ -352,7 +353,7 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
                       />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                       <TextField
                           label="قاعدة البيانات (Database)"
                           value={config.db}
@@ -365,7 +366,7 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
                       />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                       <TextField
                           label="البريد الإلكتروني (Login)"
                           value={config.username}
@@ -378,7 +379,7 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
                       />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                       <TextField
                           label="كلمة المرور / API Key"
                           type="password"
@@ -392,7 +393,7 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
                       />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                      <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.default' }}>
                         <FormControlLabel
                             control={

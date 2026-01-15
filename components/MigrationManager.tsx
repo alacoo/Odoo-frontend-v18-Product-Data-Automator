@@ -506,11 +506,11 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
                           {state.uomConflicts.map((c, idx) => (
                               <ListItem key={idx} divider>
                                   <Grid container alignItems="center" spacing={2}>
-                                      <Grid item xs={4}>
+                                      <Grid xs={4}>
                                           <Typography variant="subtitle2">Local: <b>{c.localUom}</b></Typography>
                                       </Grid>
-                                      <Grid item xs={1} textAlign="center"><ArrowRight size={16} /></Grid>
-                                      <Grid item xs={7} display="flex" gap={1}>
+                                      <Grid xs={1} textAlign="center"><ArrowRight size={16} /></Grid>
+                                      <Grid xs={7} display="flex" gap={1}>
                                           <FormControl fullWidth size="small">
                                               <InputLabel>Map to Odoo UOM</InputLabel>
                                               <Select
@@ -549,7 +549,7 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
           {state.phase !== 'RESOLVING' && (
               <Grid container spacing={3} sx={{ height: '100%' }}>
                   {/* Left: Controls & Progress */}
-                  <Grid item xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Grid xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                        <Card variant="outlined">
                            <CardContent>
                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>OVERALL PROGRESS</Typography>
@@ -622,7 +622,7 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
                   </Grid>
 
                   {/* Right: Console Logs */}
-                  <Grid item xs={12} md={7} sx={{ height: '100%' }}>
+                  <Grid xs={12} md={7} sx={{ height: '100%' }}>
                       <Paper 
                         variant="outlined" 
                         sx={{ 
