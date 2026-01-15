@@ -1,0 +1,5 @@
+{
+  "name": "Odoo v18 Product Data Automator",
+  "description": "A specialized tool to view, edit, and structure product data into Odoo v18 compatible CSV import files.",
+  "requestFramePermissions": []
+}
