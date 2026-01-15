@@ -1,10 +1,11 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 import { ParsedProduct, ActiveTab, SyncCapabilities } from '../types';
 import { 
     Search, Trash2, Package, Settings2, 
     ArrowUpDown, Plus, Download, ScanLine, 
-    Check, X, Filter
+    Check, X, Filter, Image as ImageIcon, Upload
 } from 'lucide-react';
 import { 
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
@@ -19,10 +20,11 @@ interface Props {
   onNavigate: (tab: ActiveTab, query: string) => void;
   onAdd: () => void;
   renderActions?: (selectedIds: Set<string>, clearSelection: () => void) => React.ReactNode;
-  capabilities?: SyncCapabilities; // New prop
+  capabilities?: SyncCapabilities;
 }
 
 interface VisibleColumns {
+  image: boolean;
   ref: boolean;
   barcode: boolean;
   price: boolean; 
@@ -31,6 +33,87 @@ interface VisibleColumns {
   attributes: boolean;
   type: boolean;
 }
+
+// --- Smart Image Component ---
+// Tries to load image from: 1. Base64 (User Upload) -> 2. Local File by Code -> 3. Local File by Name -> 4. Placeholder
+const SmartImage = ({ product, onClick, canWrite }: { product: ParsedProduct, onClick: () => void, canWrite: boolean }) => {
+    const [imgSrc, setImgSrc] = useState<string | null>(null);
+    const [hasError, setHasError] = useState(false);
+    const [attemptedName, setAttemptedName] = useState(false);
+
+    useEffect(() => {
+        setHasError(false);
+        setAttemptedName(false);
+
+        if (product.image) {
+            // Priority 1: Direct Base64/Url match
+            setImgSrc(product.image.startsWith('data:') ? product.image : `data:image/png;base64,${product.image}`);
+        } else if (product.defaultCode) {
+            // Priority 2: Auto-discovery by Code (e.g., public/product_images/CODE123.jpg)
+            // We assume the user creates a folder named 'product_images' in the public directory
+            const safeCode = product.defaultCode.trim(); 
+            setImgSrc(`/product_images/${safeCode}.jpg`);
+        } else if (product.templateName) {
+             // Priority 3: Auto-discovery by Name (Start here if no code)
+             setImgSrc(`/product_images/${product.templateName.trim()}.jpg`);
+             setAttemptedName(true);
+        } else {
+            setHasError(true);
+        }
+    }, [product.image, product.defaultCode, product.templateName]);
+
+    const handleError = () => {
+        if (!attemptedName && product.templateName && imgSrc && !imgSrc.includes(product.templateName)) {
+            // If failed by Code, try by Name
+            setImgSrc(`/product_images/${product.templateName.trim()}.jpg`);
+            setAttemptedName(true);
+        } else {
+            // If failed by Name (or both), show placeholder
+            setHasError(true);
+        }
+    };
+
+    return (
+        <Box 
+            onClick={onClick}
+            sx={{ 
+                width: 48, height: 48, 
+                borderRadius: 2, 
+                bgcolor: 'action.hover',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden',
+                cursor: canWrite ? 'pointer' : 'default',
+                border: 1, borderColor: 'divider',
+                position: 'relative',
+                '&:hover .upload-overlay': { opacity: 1 }
+            }}
+        >
+            {!hasError && imgSrc ? (
+                <img 
+                    src={imgSrc} 
+                    alt="" 
+                    onError={handleError}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+            ) : (
+                <ImageIcon size={20} className="text-muted" style={{ opacity: 0.3 }} />
+            )}
+            
+            {canWrite && (
+                <Box 
+                    className="upload-overlay" 
+                    sx={{ 
+                        position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.5)', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: 0, transition: 'opacity 0.2s', color: 'white'
+                    }}
+                >
+                    <Upload size={16} />
+                </Box>
+            )}
+        </Box>
+    );
+};
 
 // --- Sub-component for formatted Price editing ---
 const PriceCell = ({ 
@@ -129,16 +212,20 @@ export const ProductTable: React.FC<Props> = ({ products, onDelete, onUpdate, on
   const [sortConfig, setSortConfig] = useState<{ key: keyof ParsedProduct, direction: 'asc' | 'desc' } | null>(null);
   const [massEditPrice, setMassEditPrice] = useState<string>('');
   
+  // Image Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingForId, setUploadingForId] = useState<string | null>(null);
+
   const theme = useTheme();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Default true if capabilities not provided (e.g. demo mode)
   const canWrite = capabilities ? capabilities.canWrite : true;
   const canCreate = capabilities ? capabilities.canCreate : true;
-  // We use canWrite as proxy for delete in UI if canDelete is not explicitly handled by button logic
   const canDelete = capabilities ? (capabilities.canDelete || capabilities.canWrite) : true; 
 
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>({
+    image: true,
     ref: true,
     barcode: false,
     price: true,
@@ -267,8 +354,40 @@ export const ProductTable: React.FC<Props> = ({ products, onDelete, onUpdate, on
       searchInputRef.current?.focus();
   };
 
+  // Image Upload Logic
+  const handleImageClick = (id: string) => {
+      if (!canWrite) return;
+      setUploadingForId(id);
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && uploadingForId) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+              const base64 = evt.target?.result as string;
+              // Remove data:image/png;base64, prefix if needed by Odoo (usually strictly base64)
+              // But for local preview we keep it. Odoo service will sanitize it.
+              onUpdate(uploadingForId, 'image', base64);
+              setUploadingForId(null);
+          };
+          reader.readAsDataURL(file);
+      }
+      e.target.value = ''; // Reset
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper' }}>
+      {/* Hidden File Input for Image Uploads */}
+      <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          accept="image/*"
+          onChange={handleFileChange}
+      />
+
       {/* Modern Toolbar */}
       <Box sx={{ 
           p: 2, px: 3,
@@ -440,6 +559,9 @@ export const ProductTable: React.FC<Props> = ({ products, onDelete, onUpdate, on
                             size="small"
                         />
                     </TableCell>
+                    
+                    {visibleColumns.image && <TableCell sx={{ width: 60 }}></TableCell>}
+
                     <TableCell onClick={() => handleSort('templateName')} sx={{ cursor: 'pointer' }}>
                         <Box display="flex" alignItems="center" gap={0.5}>
                             المنتج <ArrowUpDown size={12} style={{ opacity: 0.5 }} />
@@ -474,6 +596,17 @@ export const ProductTable: React.FC<Props> = ({ products, onDelete, onUpdate, on
                                 size="small"
                             />
                         </TableCell>
+
+                        {visibleColumns.image && (
+                            <TableCell padding="none" align="center">
+                                <SmartImage 
+                                    product={product} 
+                                    onClick={() => handleImageClick(product.id)} 
+                                    canWrite={canWrite}
+                                />
+                            </TableCell>
+                        )}
+
                         <TableCell>
                             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                                 <Box sx={{ 

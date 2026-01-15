@@ -376,22 +376,58 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
       });
 
       // 3. Create Template
-      const templatePayload = {
+      let tmplId = 0;
+      
+      const payloadBase = {
           name: tmplName,
-          detailed_type: 'product',
           uom_id: uomId,
           uom_po_id: uomId,
           list_price: baseProduct.price || 0,
           standard_price: baseProduct.standard_price || 0,
           attribute_line_ids: attribute_line_ids,
-          tracking: baseProduct.tracking,
           sale_ok: true,
           purchase_ok: true,
           taxes_id: [[6, 0, []]],
           categ_id: 1
       };
 
-      const tmplId = await createOdooTemplate(templatePayload);
+      try {
+           // Attempt 1: Try with 'detailed_type' (Standard for v18)
+           // We expect v18+ to use this. If Storable Product is rejected (no Stock module), it throws "Wrong value".
+           tmplId = await createOdooTemplate({
+               ...payloadBase,
+               detailed_type: baseProduct.detailedType || 'product',
+               tracking: baseProduct.tracking
+           });
+      } catch (err: any) {
+           const errMsg = (err.message || "").toLowerCase();
+           
+           // Case 1: 'detailed_type' value is rejected (Missing Stock App or Permissions)
+           // OR standard v15 error on 'detailed_type' field name (handled by service, but if it bubbles up as other error)
+           
+           if (errMsg.includes("wrong value") || errMsg.includes("selection") || errMsg.includes("not a valid")) {
+               
+               if ((baseProduct.detailedType === 'product' || !baseProduct.detailedType)) {
+                   
+                   // NOTIFY USER FIRST via Logs
+                   addLog('warn', `Odoo rejected 'Storable' type for '${tmplName}'. Missing Inventory app?`);
+                   addLog('info', `Action: Auto-downgrading to 'Consumable' to continue migration...`);
+                   
+                   // RETRY as Consumable
+                   tmplId = await createOdooTemplate({
+                       ...payloadBase,
+                       detailed_type: 'consu',
+                       tracking: 'none'
+                   });
+               } else {
+                   // It was already not a product, so genuine error
+                   throw err;
+               }
+           } else {
+               // Propagate other errors
+               throw err;
+           }
+      }
 
       // 4. Wait for Variants & Update Codes
       if (variants.length > 0) {

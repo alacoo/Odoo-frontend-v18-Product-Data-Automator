@@ -410,8 +410,9 @@ export const fetchOdooProducts = async (): Promise<ParsedProduct[]> => {
     fields: [
       "id", "name", "display_name", "default_code", "lst_price", "standard_price",
       "qty_available", "uom_id", "tracking", "categ_id", "currency_id", 
-      "barcode", "weight", "sale_ok", "purchase_ok",
-      "allow_variable_dimensions", "price_per_sqm", "variant_price_per_sqm", "product_template_attribute_value_ids"
+      "barcode", "weight", "sale_ok", "purchase_ok", "type", // Requesting 'type' explicitly
+      "allow_variable_dimensions", "price_per_sqm", "variant_price_per_sqm", "product_template_attribute_value_ids",
+      "image_128" // Requesting thumbnail image
     ],
     limit: 300,
     order: "id desc"
@@ -511,9 +512,6 @@ export const fetchOdooUoms = async (): Promise<{id: number, name: string}[]> => 
 
 export const createOdooUom = async (name: string): Promise<number> => {
     // Default to 'Unit' category (id: 1) and uom_type 'smaller' (smaller than reference) or 'reference'.
-    // We assume 'smaller' with factor 1.0 behaves like reference for simplicity in this tool context,
-    // or standard Odoo behavior. 
-    // Usually ID 1 is the generic "Unit" category.
     const payload = {
         values: { 
             name, 
@@ -639,13 +637,38 @@ export const createOdooPricelistItem = async (pricelistId: number, productVarian
 
 // --- Product Management ---
 
+/**
+ * Creates a product template with robust error handling for type mismatch.
+ * Automatically tries 'type' vs 'detailed_type' and downgrades 'product' to 'consu' if permissions fail.
+ */
 export const createOdooTemplate = async (data: any): Promise<number> => {
-    const payload = { values: data, fields: ["id"] };
-    const result = await apiFetch('/send_request?model=product.template', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
-    return Array.isArray(result) && result.length > 0 ? result[0].id : 0;
+    const create = async (payloadValues: any) => {
+        const payload = { values: payloadValues, fields: ["id"] };
+        const result = await apiFetch('/send_request?model=product.template', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        return Array.isArray(result) && result.length > 0 ? result[0].id : 0;
+    };
+
+    // 1. Try with initial data (likely detailed_type='product')
+    try {
+        return await create(data);
+    } catch (err: any) {
+        const errMsg = (err.message || "").toLowerCase();
+        
+        // Strategy 1: Check if 'detailed_type' field is invalid (older Odoo versions)
+        if (errMsg.includes("invalid field") && errMsg.includes("detailed_type")) {
+             const fallbackData = { ...data, type: data.detailed_type };
+             delete fallbackData.detailed_type;
+             
+             return await create(fallbackData);
+        }
+        
+        // We do NOT handle Downgrade logic here anymore. 
+        // We throw the error so the caller (MigrationManager) can log it to the UI and retry.
+        throw err;
+    }
 };
 
 /**
@@ -678,14 +701,27 @@ export const waitForProductVariants = async (templateId: number, expectedMinCoun
     });
 };
 
+/**
+ * Creates a product with auto-downgrade logic for storable type.
+ */
 export const createOdooProduct = async (product: Partial<ParsedProduct>): Promise<number> => {
+    const create = async (vals: any) => {
+        const payload = { values: vals, fields: ["id"] };
+        const result = await apiFetch('/send_request?model=product.product', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        return Array.isArray(result) && result.length > 0 ? result[0].id : 0;
+    };
+
     const values = transformLocalToOdoo(product);
-    const payload = { values: values, fields: ["id"] };
-    const result = await apiFetch('/send_request?model=product.product', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
-    return Array.isArray(result) && result.length > 0 ? result[0].id : 0;
+
+    try {
+        return await create(values);
+    } catch (err: any) {
+        // We strictly throw errors now to allow callers to handle logic/notifications
+        throw err;
+    }
 };
 
 export const updateOdooProduct = async (id: number, data: Partial<ParsedProduct>) => {
@@ -717,6 +753,18 @@ const transformLocalToOdoo = (p: Partial<ParsedProduct>): any => {
     if (p.barcode) payload.barcode = p.barcode;
     if (p.weight) payload.weight = p.weight;
     
+    // Image Handling
+    if (p.image) {
+        // Strip prefix if exists, Odoo expects pure base64
+        const base64 = p.image.includes('base64,') ? p.image.split('base64,')[1] : p.image;
+        payload.image_1920 = base64;
+    }
+    
+    // Default to 'detailed_type' which is standard in v15+
+    // If 'detailedType' in local is 'product', we map it.
+    if (p.detailedType) payload.detailed_type = p.detailedType;
+    else if (p.detailedType === undefined) payload.detailed_type = 'product'; // Default to storable if not specified
+
     payload.sale_ok = p.sale_ok === true;
     payload.purchase_ok = true;
 
@@ -739,7 +787,8 @@ const transformOdooToLocal = (odooData: any[]): ParsedProduct[] => {
 
   return odooData.map(item => {
     const uomName = Array.isArray(item.uom_id) ? item.uom_id[1] : 'Units';
-    const dType = 'product'; 
+    // Use the fetched 'detailed_type' or 'type', default to 'product' (storable) if missing
+    const dType = item.detailed_type || item.type || 'product'; 
     const currency = Array.isArray(item.currency_id) ? item.currency_id[1] : 'SAR';
 
     let attributes: {name: string, value: string}[] = [];
@@ -772,6 +821,7 @@ const transformOdooToLocal = (odooData: any[]): ParsedProduct[] => {
       sale_ok: item.sale_ok,
       purchase_ok: item.purchase_ok,
       attributes: attributes,
+      image: item.image_128, // Map thumbnail to local image prop
       allow_variable_dimensions: item.allow_variable_dimensions || false,
       price_per_sqm: item.price_per_sqm || 0,
       variant_price_per_sqm: item.variant_price_per_sqm || 0,

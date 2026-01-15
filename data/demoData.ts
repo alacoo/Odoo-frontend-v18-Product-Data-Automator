@@ -1,5 +1,4 @@
 
-
 import { ParsedProduct, OdooTracking } from '../types';
 
 // Default Rates
@@ -25,15 +24,21 @@ const determineTracking = (code: string, type: string): OdooTracking => {
     if (type === 'service' || type === 'consu') return 'none';
     if (code.startsWith('MACH-')) return 'serial';
     if (code.startsWith('MAT-BNR') || code.startsWith('MAT-FLX') || code.startsWith('VINYL')) return 'lot';
+    if (code.startsWith('FALX') || code.startsWith('BANR')) return 'lot'; // Added logic for new items
     return 'none';
 };
 
 // Heuristic to extract width for SQM calculation
 const extractWidth = (attributes: {name: string, value: string}[]): number | null => {
-    const widthAttr = attributes.find(a => a.name.includes('عرض') || a.name.includes('Width'));
+    const widthAttr = attributes.find(a => a.name.includes('عرض') || a.name.includes('Width') || a.name.includes('المقاس'));
     if (widthAttr) {
-        const match = widthAttr.value.match(/([\d\.]+)/);
-        return match ? parseFloat(match[1]) : null;
+        // Try to match meters first (e.g. 3.20m or 3.20 م)
+        const match = widthAttr.value.match(/([\d\.]+)\s*(m|م)/i);
+        if (match) return parseFloat(match[1]);
+        
+        // Fallback for just numbers if explicitly width
+        const simpleMatch = widthAttr.value.match(/([\d\.]+)/);
+        return simpleMatch ? parseFloat(simpleMatch[1]) : null;
     }
     return null;
 };
@@ -259,7 +264,29 @@ export const getDemoData = (): ParsedProduct[] => {
         { code: "PART-PSU-RAIN-200W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 3551, uom: "Piece", type: "product", attrs: "النوع:Rainproof, القدرة:200W, التيار:16.66A" },
         { code: "PART-PSU-STD-150W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 3180, uom: "Piece", type: "product", attrs: "النوع:Standard, القدرة:150W, التيار:12.5A" },
         { code: "PART-PSU-RAIN-100W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 3180, uom: "Piece", type: "product", attrs: "النوع:Rainproof, القدرة:100W, التيار:8.33A" },
-        { code: "PART-PSU-STD-60W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 2120, uom: "Piece", type: "product", attrs: "النوع:Standard, القدرة:60W, التيار:5.0A" }
+        { code: "PART-PSU-STD-60W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 2120, uom: "Piece", type: "product", attrs: "النوع:Standard, القدرة:60W, التيار:5.0A" },
+        
+        // --- NEW ITEMS FROM INVOICE ---
+        // Converted USD Prices to YER (Price * 530)
+        
+        { code: "FALX.1.1.1.16886", name: "فلكس تورجيت (Flex Tourjet)", price: 127200, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:3.20m, الطول:50m" },
+        { code: "FALX.1.1.1.16884", name: "فلكس تورجيت (Flex Tourjet)", price: 87450, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:2.20m, الطول:50m" },
+        { code: "FALX.1.1.1.16883", name: "فلكس تورجيت (Flex Tourjet)", price: 63600, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:1.60m, الطول:50m" },
+        { code: "FALX.1.1.1.16880", name: "فلكس تورجيت (Flex Tourjet)", price: 51675, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:1.30m, الطول:50m" },
+        { code: "FALX.1.1.1.16882", name: "فلكس تورجيت (Flex Tourjet)", price: 43725, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:1.10m, الطول:50m" },
+        { code: "BANR.1.1.1.2.16642", name: "بنر طباعة لماع (Glossy Banner)", price: 23415, uom: "Roll", type: "product", attrs: "الوزن:280g, عرض الرولة:1.55m, الطول:50m, النوع:Glossy" },
+        { code: "BANR.1.1.1.2.16636", name: "بنر طباعة لماع (Glossy Banner)", price: 15863, uom: "Roll", type: "product", attrs: "الوزن:280g, عرض الرولة:1.05m, الطول:50m, النوع:Glossy" },
+        { code: "VINYL.1.3.2.3.17663", name: "لاصق روكو سترو مخرم (Vinyl Roco Perforated)", price: 39326, uom: "Roll", type: "product", attrs: "عرض الرولة:1.06m, الطول:50m, النوع:Perforated" },
+        { code: "VINYL.1.3.2.2.17757", name: "لاصق روكو ابيض (Vinyl Roco White)", price: 35112, uom: "Roll", type: "product", attrs: "عرض الرولة:1.06m, الطول:50m, اللون:White" },
+        { code: "Inc.2.2.17111", name: "حبر ارت جت (Art Jet Ink)", price: 30210, uom: "Piece", type: "product", attrs: "الماركة:Prem, اللون:Red, الحجم:5L" },
+        { code: "Inc.2.2.17110", name: "حبر ارت جت (Art Jet Ink)", price: 30210, uom: "Piece", type: "product", attrs: "الماركة:Prem, اللون:Blue, الحجم:5L" },
+        { code: "Inc.2.2.17112", name: "حبر ارت جت (Art Jet Ink)", price: 30210, uom: "Piece", type: "product", attrs: "الماركة:Prem, اللون:Yellow, الحجم:5L" },
+        { code: "Inc.2.2.16118", name: "حبر ايكو سولفنت (Eco Solvent Ink)", price: 7950, uom: "Liter", type: "product", attrs: "الماركة:Eco Plus Art Jet, اللون:Red" },
+        { code: "Inc.2.2.16119", name: "حبر ايكو سولفنت (Eco Solvent Ink)", price: 7950, uom: "Liter", type: "product", attrs: "الماركة:Eco Plus Art Jet, اللون:Blue" },
+        { code: "Inc.2.2.16121", name: "حبر ايكو سولفنت (Eco Solvent Ink)", price: 7950, uom: "Liter", type: "product", attrs: "الماركة:Eco Plus Art Jet, اللون:Yellow" },
+        { code: "BANR.1.1.2.1.16364", name: "بنر طباعة لماع (Glossy Banner)", price: 55120, uom: "Roll", type: "product", attrs: "الوزن:340g, عرض الرولة:3.20m, الطول:50m, النوع:Glossy" },
+        { code: "BANR.1.1.1.2.16457", name: "بنر طباعة لماع (Glossy Banner)", price: 48336, uom: "Roll", type: "product", attrs: "الوزن:280g, عرض الرولة:3.20m, الطول:50m, النوع:Glossy" },
+        { code: "VINYL.1.3.2.3.17665", name: "لاصق روكو سترو مخرم (Vinyl Roco Perforated)", price: 56392, uom: "Roll", type: "product", attrs: "عرض الرولة:1.52m, الطول:50m, النوع:Perforated" }
     ];
 
     return rawData.map(item => {

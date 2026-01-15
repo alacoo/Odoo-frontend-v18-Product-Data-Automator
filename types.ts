@@ -1,5 +1,4 @@
 
-
 export interface Attribute {
   name: string;
   value: string;
@@ -60,6 +59,9 @@ export interface ParsedProduct {
   weight?: number;
   sale_ok?: boolean;
   purchase_ok?: boolean;
+  
+  // Media
+  image?: string; // Base64 string
 
   // Custom Odoo Fields (Restored)
   allow_variable_dimensions?: boolean;
