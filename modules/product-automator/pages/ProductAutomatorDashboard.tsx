@@ -5,22 +5,22 @@ import {
   Server, PlayCircle, RefreshCw, UploadCloud, FileJson, 
   ChevronLeft, ChevronRight, FileDown,
   Languages, Sparkles, Activity, Banknote, Coins, DollarSign,
-  Menu, X, Info, CheckCircle, AlertTriangle, XCircle, ArrowRight
+  Menu, XCircle, Info, CheckCircle, ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { ParsedProduct, ProcessingStep, ActiveTab, AppMode, Notification, OdooCurrency, OdooPricelist, SyncCapabilities, AiSuggestion } from '../../../types';
-import { ProductTable } from '../../../components/ProductTable';
-import { AttributeManager } from '../../../components/AttributeManager';
-import { TemplateManager } from '../../../components/TemplateManager';
-import { ExportConfigurator } from '../../../components/ExportConfigurator';
-import { UomViewer } from '../../../components/UomViewer';
-import { ConnectionManager } from '../../../components/ConnectionManager';
-import { MigrationManager } from '../../../components/MigrationManager';
-import { PricelistManager } from '../../../components/PricelistManager';
-import { DashboardStats } from '../../../components/DashboardStats';
-import { AiOrganizer } from '../../../components/AiOrganizer';
-import { getDemoData, DEFAULT_RATES } from '../../../data/demoData';
+import { ParsedProduct, ProcessingStep, ActiveTab, AppMode, Notification, OdooCurrency, OdooPricelist, SyncCapabilities, AiSuggestion } from '../types';
+import { ProductTable } from '../components/ProductTable';
+import { AttributeManager } from '../components/AttributeManager';
+import { TemplateManager } from '../components/TemplateManager';
+import { ExportConfigurator } from '../components/ExportConfigurator';
+import { UomViewer } from '../components/UomViewer';
+import { ConnectionManager } from '../components/ConnectionManager';
+import { MigrationManager } from '../components/MigrationManager';
+import { PricelistManager } from '../components/PricelistManager';
+import { DashboardStats } from '../components/DashboardStats';
+import { AiOrganizer } from '../components/AiOrganizer';
+import { getDemoData, DEFAULT_RATES } from '../data/demoData';
 import { 
     authenticateOdoo, 
     fetchOdooProducts,
@@ -29,21 +29,21 @@ import {
     createOdooProduct, 
     updateOdooProduct, 
     deleteOdooProduct 
-} from '../../../services/odooService';
-import { getFullSettings } from '../../../services/settingsService';
+} from '../services/odooService';
+import { getFullSettings } from '../services/settingsService';
 
 interface ProductAutomatorDashboardProps {
     onBack: () => void;
     onError?: (error: any) => void;
-    appModeProp?: AppMode;
+    appMode?: AppMode; // Updated prop name to match guide
 }
 
 const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({ 
     onBack, 
     onError,
-    appModeProp = 'demo'
+    appMode: propAppMode = 'demo' // Default to demo
 }) => {
-  const [appMode, setAppMode] = useState<AppMode>(appModeProp);
+  const [appMode, setAppMode] = useState<AppMode>(propAppMode);
   const [currentStep, setCurrentStep] = useState<ProcessingStep>(ProcessingStep.REVIEW);
   const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.VARIANTS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -81,6 +81,11 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
   const handleCloseNotification = (id: string) => {
       setNotifications(prev => prev.filter(n => n.id !== id));
   };
+
+  useEffect(() => {
+    // Sync local state if prop changes
+    if (propAppMode) setAppMode(propAppMode);
+  }, [propAppMode]);
 
   useEffect(() => {
     if (appMode === 'demo') {
@@ -417,7 +422,7 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
                   { id: ActiveTab.ATTRIBUTES, label: 'Attributes', icon: Tags },
                   { id: ActiveTab.UOMS, label: 'Units', icon: Scale },
                   { id: ActiveTab.PRICELISTS, label: 'Pricelists', icon: Banknote },
-                  { id: ActiveTab.MIGRATION, label: 'Migration', icon: ArrowRight }, // Changed icon to generic arrow
+                  { id: ActiveTab.MIGRATION, label: 'Migration', icon: ArrowRight },
                   { id: ActiveTab.CONNECTION, label: 'Connection', icon: Settings },
               ].map((item) => {
                   const isActive = activeTab === item.id;
@@ -562,7 +567,7 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
                                     <p className="text-xs opacity-90 leading-snug">{n.message}</p>
                                 </div>
                                 <button onClick={() => handleCloseNotification(n.id)} className="shrink-0 opacity-50 hover:opacity-100">
-                                    <X size={16} />
+                                    <XCircle size={16} />
                                 </button>
                             </div>
                         ))}
@@ -591,7 +596,7 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
                                     onAdd={handleCreateProduct}
                                     onNavigate={(t, q) => { setActiveTab(t); }}
                                     capabilities={appMode === 'live' ? capabilities : undefined}
-                                    renderActions={(selectedIds) => (
+                                    renderActions={(selectedIds, clearSelection) => (
                                         <>
                                             {appMode === 'demo' && (
                                                 <button

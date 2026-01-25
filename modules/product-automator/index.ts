@@ -1,8 +1,13 @@
 
-// modules/product-automator/index.ts
+/**
+ * Product Automator Module Entry Point
+ */
 
 // Export Pages
 export { default as ProductAutomatorDashboard } from './pages/ProductAutomatorDashboard';
+
+// Export Types
+export type * from './types';
 
 // Module Metadata
 export const MODULE_INFO = {

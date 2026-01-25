@@ -1,6 +1,3 @@
-/**
- * Application Types
- */
 
 export type AppMode = 'demo' | 'live';
 
@@ -199,18 +196,4 @@ export interface DashboardStat {
   value: string | number;
   icon: any;
   color: string;
-}
-
-export interface ExampleEntity {
-  id: number;
-  name: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ExampleApiResponse {
-  success: boolean;
-  message: string;
-  data: any;
 }

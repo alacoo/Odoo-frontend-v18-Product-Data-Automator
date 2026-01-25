@@ -46,7 +46,7 @@ export default function App() {
         <div className="flex-1 overflow-hidden">
             <ProductAutomatorDashboard 
                 onBack={() => console.log("Back navigation requested")} 
-                appModeProp="demo"
+                appMode="demo"
             />
         </div>
       </div>
