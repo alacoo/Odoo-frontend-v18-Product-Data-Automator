@@ -14,9 +14,7 @@
     "xlsx": "^0.18.5",
     "papaparse": "^5.5.3",
     "lucide-react": "0.292.0",
-    "@mui/material": "5.14.18",
-    "@emotion/react": "11.11.1",
-    "@emotion/styled": "11.11.0"
+    "@google/genai": "^1.38.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

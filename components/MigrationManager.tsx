@@ -1,27 +1,18 @@
-
-import React, { useState, useEffect, useRef, useReducer, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-    ParsedProduct, OdooAttribute, OdooAttributeValue, OdooCurrency, OdooPricelist, 
+    ParsedProduct, OdooAttribute, OdooAttributeValue, 
     MigrationState, MigrationPhase, MigrationTask, MigrationLog, UomConflict 
 } from '../types';
 import { 
     createOdooAttribute, createOdooAttributeValue, createOdooTemplate, 
     fetchOdooAttributes, fetchOdooAttributeValues, waitForProductVariants, 
-    updateOdooProduct, fetchOdooCurrencies, fetchOdooPricelists, createOdooPricelist, createOdooPricelistItem,
-    fetchOdooUoms, createOdooUom, delay
+    updateOdooProduct, fetchOdooUoms, createOdooUom, delay
 } from '../services/odooService';
-import { getFullSettings } from '../services/settingsService';
 import { 
-    ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, Play, Tags, Layers, 
-    Loader2, Database, AlertCircle, Save, Download, PauseCircle, PlayCircle, 
-    Trash2, Search, Activity, Plus
+    ArrowRight, CheckCircle2, Play, 
+    Loader2, AlertCircle, Download, PauseCircle, PlayCircle, 
+    Trash2, Search, Activity, Plus, FileText, Check, AlertTriangle
 } from 'lucide-react';
-import { 
-    Box, Paper, Typography, Button, Stepper, Step, StepLabel, LinearProgress, 
-    List, ListItem, ListItemText, ListItemIcon, 
-    Chip, Divider, Alert, AlertTitle, Grid, Card, CardContent, useTheme, IconButton, 
-    Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tooltip
-} from '@mui/material';
 
 // --- Constants ---
 const STORAGE_KEY = 'odoo_migration_state_v1';
@@ -59,7 +50,6 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
   
   // UI References
   const logEndRef = useRef<HTMLDivElement>(null);
-  const theme = useTheme();
 
   // Persist State Effect
   useEffect(() => {
@@ -276,12 +266,9 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
               // --- Logic Switch ---
               if (task.type === 'attribute') {
                   const id = await createOdooAttribute(task.data.name);
-                  // Update local cache so values can find it
                   setOdooAttributes(prev => [...prev, { id, name: task.data.name, display_type: 'select' }]);
               } 
               else if (task.type === 'value') {
-                  // Find Parent Attribute ID (might be newly created)
-                  // We must fetch latest attributes state or search in what we just pushed
                   const attr = odooAttributes.find(a => a.name.toLowerCase() === task.data.attrName.toLowerCase());
                   if (!attr) throw new Error(`Attribute ${task.data.attrName} not found (dependency failed)`);
                   
@@ -305,7 +292,6 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
                   progress
               }));
 
-              // Small delay to allow UI to breathe and not hammer Odoo
               await delay(200);
 
           } catch (e: any) {
@@ -393,7 +379,6 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
 
       try {
            // Attempt 1: Try with 'detailed_type' (Standard for v18)
-           // We expect v18+ to use this. If Storable Product is rejected (no Stock module), it throws "Wrong value".
            tmplId = await createOdooTemplate({
                ...payloadBase,
                detailed_type: baseProduct.detailedType || 'product',
@@ -402,29 +387,20 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
       } catch (err: any) {
            const errMsg = (err.message || "").toLowerCase();
            
-           // Case 1: 'detailed_type' value is rejected (Missing Stock App or Permissions)
-           // OR standard v15 error on 'detailed_type' field name (handled by service, but if it bubbles up as other error)
-           
            if (errMsg.includes("wrong value") || errMsg.includes("selection") || errMsg.includes("not a valid")) {
-               
                if ((baseProduct.detailedType === 'product' || !baseProduct.detailedType)) {
-                   
-                   // NOTIFY USER FIRST via Logs
                    addLog('warn', `Odoo rejected 'Storable' type for '${tmplName}'. Missing Inventory app?`);
                    addLog('info', `Action: Auto-downgrading to 'Consumable' to continue migration...`);
                    
-                   // RETRY as Consumable
                    tmplId = await createOdooTemplate({
                        ...payloadBase,
                        detailed_type: 'consu',
                        tracking: 'none'
                    });
                } else {
-                   // It was already not a product, so genuine error
                    throw err;
                }
            } else {
-               // Propagate other errors
                throw err;
            }
       }
@@ -433,7 +409,6 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
       if (variants.length > 0) {
            const generatedVariants = await waitForProductVariants(tmplId, variants.length);
            for (const genVar of generatedVariants) {
-                // Match Logic: Display Name contains all attr values
                 const match = variants.find((local: ParsedProduct) => {
                     const dn = (genVar.display_name || "").toLowerCase();
                     return local.attributes.every(a => dn.includes(a.value.toLowerCase()));
@@ -451,8 +426,6 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
       }
   };
 
-  // --- Rendering ---
-
   const getPhaseLabel = (phase: MigrationPhase) => {
       switch(phase) {
           case 'IDLE': return 'Ready';
@@ -466,205 +439,269 @@ export const MigrationManager: React.FC<Props> = ({ demoProducts, onRefreshLive 
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-800 font-sans">
       {/* Header */}
-      <Paper sx={{ p: 2, px: 3, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box display="flex" alignItems="center" gap={2}>
-              <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'white' }}>
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between bg-white dark:bg-zinc-800 shadow-sm">
+          <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
                   <Activity size={24} />
-              </Box>
-              <Box>
-                  <Typography variant="h6" fontWeight="bold">Migration Manager</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                      Session ID: <span style={{fontFamily: 'monospace'}}>{state.id.split('-')[0]}</span> • Status: <b>{getPhaseLabel(state.phase)}</b>
-                  </Typography>
-              </Box>
-          </Box>
-          <Box>
-              <Button startIcon={<Trash2 size={16}/>} color="error" onClick={resetMigration} sx={{ mr: 1 }}>
-                  Reset
-              </Button>
-              <Button startIcon={<Download size={16}/>} onClick={downloadLogs} variant="outlined" size="small">
-                  Logs
-              </Button>
-          </Box>
-      </Paper>
+              </div>
+              <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Migration Manager</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Session ID: <span className="font-mono text-purple-600 dark:text-purple-400">{state.id.split('-')[0]}</span> • Status: <span className="font-bold">{getPhaseLabel(state.phase)}</span>
+                  </p>
+              </div>
+          </div>
+          <div className="flex items-center gap-2">
+              <button 
+                onClick={resetMigration} 
+                className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium"
+              >
+                  <Trash2 size={16} /> Reset
+              </button>
+              <button 
+                onClick={downloadLogs} 
+                className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors text-sm font-medium"
+              >
+                  <Download size={16} /> Logs
+              </button>
+          </div>
+      </div>
 
       {/* Content Area */}
-      <Box sx={{ flex: 1, p: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div className="flex flex-col flex-1 p-6 gap-6 overflow-hidden bg-gray-50 dark:bg-zinc-900/50">
           
           {/* Phase 1: UOM Conflict Resolution */}
           {state.phase === 'RESOLVING' && (
-              <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: 1, overflowY: 'auto' }}>
-                      <Alert severity="warning" sx={{ mb: 2 }}>
-                          <AlertTitle>UOM Conflicts Detected</AlertTitle>
-                          The following units in your local data do not have exact matches in Odoo. 
-                          Please map them manually to avoid data errors.
-                      </Alert>
-                      <List>
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-700 flex flex-col flex-1 overflow-hidden">
+                  <div className="p-6 flex-1 overflow-y-auto">
+                      <div className="flex items-start gap-4 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800 rounded-xl mb-6">
+                          <AlertTriangle className="text-amber-600 dark:text-amber-400 mt-0.5" size={24} />
+                          <div>
+                              <h3 className="font-bold text-amber-800 dark:text-amber-300">UOM Conflicts Detected</h3>
+                              <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                                  The following units in your local data do not have exact matches in Odoo. Please map them manually or create new units.
+                              </p>
+                          </div>
+                      </div>
+                      
+                      <div className="space-y-3">
                           {state.uomConflicts.map((c, idx) => (
-                              <ListItem key={idx} divider>
-                                  <Grid container alignItems="center" spacing={2}>
-                                      <Grid xs={4}>
-                                          <Typography variant="subtitle2">Local: <b>{c.localUom}</b></Typography>
-                                      </Grid>
-                                      <Grid xs={1} textAlign="center"><ArrowRight size={16} /></Grid>
-                                      <Grid xs={7} display="flex" gap={1}>
-                                          <FormControl fullWidth size="small">
-                                              <InputLabel>Map to Odoo UOM</InputLabel>
-                                              <Select
-                                                  value={c.resolvedOdooId || ''}
-                                                  label="Map to Odoo UOM"
-                                                  onChange={(e) => resolveConflict(c.localUom, Number(e.target.value))}
-                                              >
-                                                  {odooUoms.map(u => (
-                                                      <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
-                                                  ))}
-                                              </Select>
-                                          </FormControl>
-                                          <Tooltip title={`Create '${c.localUom}' in Odoo`}>
-                                              <IconButton 
-                                                onClick={() => handleCreateUom(c.localUom)} 
-                                                color="primary" 
-                                                sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
-                                                disabled={!!c.resolvedOdooId}
-                                              >
-                                                  {c.resolvedOdooId ? <CheckCircle2 size={20} /> : <Plus size={20} />}
-                                              </IconButton>
-                                          </Tooltip>
-                                      </Grid>
-                                  </Grid>
-                              </ListItem>
+                              <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-700/30 rounded-xl border border-gray-100 dark:border-zinc-700">
+                                  <div className="flex items-center gap-4 flex-1">
+                                      <div className="min-w-[120px]">
+                                          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Local Unit</span>
+                                          <span className="text-lg font-bold text-gray-900 dark:text-white">{c.localUom}</span>
+                                      </div>
+                                      <ArrowRight size={20} className="text-gray-400" />
+                                      <div className="flex-1 max-w-sm">
+                                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Map to Odoo Unit</label>
+                                          <select
+                                              value={c.resolvedOdooId || ''}
+                                              onChange={(e) => resolveConflict(c.localUom, Number(e.target.value))}
+                                              className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                          >
+                                              <option value="" disabled>Select a unit...</option>
+                                              {odooUoms.map(u => (
+                                                  <option key={u.id} value={u.id}>{u.name}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2 border-l border-gray-200 dark:border-zinc-700 pl-4 ml-4">
+                                      <span className="text-xs text-gray-400 font-medium mr-2">OR</span>
+                                      <button 
+                                        onClick={() => handleCreateUom(c.localUom)}
+                                        disabled={!!c.resolvedOdooId}
+                                        className="flex items-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={`Create '${c.localUom}' in Odoo`}
+                                      >
+                                          {c.resolvedOdooId ? <CheckCircle2 size={16} /> : <Plus size={16} />}
+                                          <span>Create New</span>
+                                      </button>
+                                  </div>
+                              </div>
                           ))}
-                      </List>
-                  </CardContent>
-                  <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button variant="contained" onClick={finishResolution}>Confirm Mappings</Button>
-                  </Box>
-              </Card>
+                      </div>
+                  </div>
+                  <div className="p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 flex justify-end">
+                      <button 
+                        onClick={finishResolution}
+                        className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-lg shadow-primary-600/20 transition-all"
+                      >
+                          Confirm Mappings
+                      </button>
+                  </div>
+              </div>
           )}
 
           {/* Phase 0/2/3: Dashboard */}
           {state.phase !== 'RESOLVING' && (
-              <Grid container spacing={3} sx={{ height: '100%' }}>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+                  
                   {/* Left: Controls & Progress */}
-                  <Grid xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                       <Card variant="outlined">
-                           <CardContent>
-                               <Typography variant="subtitle2" color="text.secondary" gutterBottom>OVERALL PROGRESS</Typography>
-                               <Box display="flex" alignItems="center" gap={2} mb={1}>
-                                   <LinearProgress variant="determinate" value={state.progress} sx={{ flex: 1, height: 10, borderRadius: 5 }} />
-                                   <Typography variant="h6" fontWeight="bold">{state.progress}%</Typography>
-                               </Box>
-                               <Typography variant="caption" color="text.secondary">
-                                   Task {state.currentTaskIndex} / {state.tasks.length || '?'}
-                               </Typography>
-                           </CardContent>
-                       </Card>
+                  <div className="lg:col-span-5 flex flex-col gap-6">
+                       {/* Progress Card */}
+                       <div className="bg-white dark:bg-zinc-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-zinc-700">
+                           <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Overall Progress</h3>
+                           
+                           <div className="flex items-end gap-3 mb-2">
+                               <span className="text-4xl font-extrabold text-primary-600 dark:text-primary-400 leading-none">
+                                   {state.progress}%
+                               </span>
+                               <span className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                                   Task {state.currentTaskIndex} of {state.tasks.length || '?'}
+                               </span>
+                           </div>
+                           
+                           <div className="w-full bg-gray-100 dark:bg-zinc-700 rounded-full h-3 mb-4 overflow-hidden">
+                               <div 
+                                   className="bg-primary-600 h-3 rounded-full transition-all duration-300 ease-out" 
+                                   style={{ width: `${state.progress}%` }}
+                               ></div>
+                           </div>
+                           
+                           <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 font-mono">
+                               <span>Start</span>
+                               <span>Finish</span>
+                           </div>
+                       </div>
 
-                       <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                           <CardContent sx={{ flex: 1 }}>
-                               <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Action Center</Typography>
-                               
+                       {/* Action Center */}
+                       <div className="bg-white dark:bg-zinc-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-zinc-700 flex-1 flex flex-col">
+                           <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6">Action Center</h3>
+                           
+                           <div className="flex-1 flex flex-col items-center justify-center text-center">
                                {state.phase === 'IDLE' && (
                                    state.tasks.length === 0 ? (
-                                        <Box mt={2}>
-                                            <Alert severity="info" sx={{ mb: 2 }}>Ready to analyze {demoProducts.length} local products.</Alert>
-                                            <Button fullWidth variant="contained" size="large" startIcon={<Search />} onClick={runAnalysis}>
+                                        <div className="animate-in fade-in zoom-in-95 duration-300">
+                                            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Search size={32} />
+                                            </div>
+                                            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Ready to Analyze</h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                                We found {demoProducts.length} local products ready for migration.
+                                            </p>
+                                            <button 
+                                                onClick={runAnalysis}
+                                                className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary-600/20"
+                                            >
                                                 Start Analysis
-                                            </Button>
-                                        </Box>
+                                            </button>
+                                        </div>
                                    ) : (
-                                        <Box mt={2}>
-                                            <Alert severity="success" sx={{ mb: 2 }}>Analysis Complete. {state.tasks.length} tasks planned.</Alert>
-                                            <Button fullWidth variant="contained" size="large" startIcon={<PlayCircle />} onClick={startMigration}>
-                                                Execute Migration
-                                            </Button>
-                                        </Box>
+                                        <div className="animate-in fade-in zoom-in-95 duration-300 w-full">
+                                            <div className="w-16 h-16 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <FileText size={32} />
+                                            </div>
+                                            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Plan Ready</h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                                Generated {state.tasks.length} migration tasks.
+                                            </p>
+                                            <button 
+                                                onClick={startMigration}
+                                                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2"
+                                            >
+                                                <PlayCircle size={20} /> Execute Migration
+                                            </button>
+                                        </div>
                                    )
                                )}
 
                                {state.phase === 'MIGRATING' && (
-                                   <Box mt={2} textAlign="center">
-                                       <Loader2 size={48} className="animate-spin text-primary" style={{ marginBottom: 16 }} />
-                                       <Typography variant="h6">Migrating...</Typography>
-                                       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                   <div className="animate-in fade-in zoom-in-95 duration-300">
+                                       <Loader2 size={64} className="text-primary-600 animate-spin mx-auto mb-6" />
+                                       <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Migrating...</h4>
+                                       <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
                                            Please do not close this window.
-                                       </Typography>
-                                       <Button variant="outlined" color="warning" startIcon={<PauseCircle />} onClick={pauseMigration}>
-                                           Pause Execution
-                                       </Button>
-                                   </Box>
+                                       </p>
+                                       <button 
+                                            onClick={pauseMigration}
+                                            className="px-6 py-2 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-xl font-bold transition-colors flex items-center gap-2 mx-auto"
+                                       >
+                                           <PauseCircle size={18} /> Pause
+                                       </button>
+                                   </div>
                                )}
 
                                {state.phase === 'PAUSED' && (
-                                   <Box mt={2}>
-                                       <Alert severity="warning" sx={{ mb: 2 }}>
-                                            <AlertTitle>Migration Paused</AlertTitle>
-                                            Process stopped. Check logs for details. You can resume from where you left off.
-                                       </Alert>
-                                       <Button fullWidth variant="contained" color="primary" startIcon={<Play />} onClick={startMigration}>
-                                           Resume
-                                       </Button>
-                                   </Box>
+                                   <div className="animate-in fade-in zoom-in-95 duration-300 w-full">
+                                       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl p-4 mb-6 text-left">
+                                            <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300 mb-1">
+                                                <AlertTriangle size={18} /> Migration Paused
+                                            </div>
+                                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                                                Process stopped. Check logs for details. You can resume from where you left off.
+                                            </p>
+                                       </div>
+                                       <button 
+                                            onClick={startMigration}
+                                            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary-600/20 flex items-center justify-center gap-2"
+                                       >
+                                           <Play size={20} /> Resume
+                                       </button>
+                                   </div>
                                )}
                                
                                {state.phase === 'DONE' && (
-                                   <Box mt={2} textAlign="center">
-                                       <CheckCircle2 size={64} color={theme.palette.success.main} style={{ marginBottom: 16 }} />
-                                       <Typography variant="h5" fontWeight="bold">Success!</Typography>
-                                       <Typography color="text.secondary">All operations completed.</Typography>
-                                   </Box>
+                                   <div className="animate-in fade-in zoom-in-95 duration-300">
+                                       <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                                           <CheckCircle2 size={40} strokeWidth={3} />
+                                       </div>
+                                       <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Success!</h4>
+                                       <p className="text-gray-500 dark:text-gray-400">All operations completed successfully.</p>
+                                   </div>
                                )}
-                           </CardContent>
-                       </Card>
-                  </Grid>
+                           </div>
+                       </div>
+                  </div>
 
                   {/* Right: Console Logs */}
-                  <Grid xs={12} md={7} sx={{ height: '100%' }}>
-                      <Paper 
-                        variant="outlined" 
-                        sx={{ 
-                            height: '100%', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            bgcolor: '#1e1e1e',
-                            color: '#d4d4d4',
-                            fontFamily: 'monospace',
-                            fontSize: '0.85rem'
-                        }}
-                      >
-                          <Box sx={{ p: 1, borderBottom: 1, borderColor: '#333', display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: state.phase === 'MIGRATING' ? '#22c55e' : '#666' }} />
-                              <Typography variant="caption" fontWeight="bold">CONSOLE OUTPUT</Typography>
-                          </Box>
-                          <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-                              {state.logs.length === 0 && <Typography sx={{ opacity: 0.5 }}>Waiting for logs...</Typography>}
+                  <div className="lg:col-span-7 h-full min-h-[400px]">
+                      <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 h-full flex flex-col overflow-hidden font-mono text-sm">
+                          <div className="px-4 py-3 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                  <div className={`w-2.5 h-2.5 rounded-full ${state.phase === 'MIGRATING' ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+                                  <span className="text-zinc-400 font-bold text-xs uppercase tracking-wider">Console Output</span>
+                              </div>
+                              <span className="text-zinc-600 text-xs">{state.logs.length} events</span>
+                          </div>
+                          
+                          <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                              {state.logs.length === 0 && (
+                                  <div className="text-zinc-600 italic text-center mt-10">Waiting for logs...</div>
+                              )}
                               {state.logs.map((log, i) => (
-                                  <div key={i} style={{ marginBottom: 4, display: 'flex', gap: 8 }}>
-                                      <span style={{ color: '#569cd6' }}>[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                                      <span style={{ 
-                                          color: log.level === 'error' ? '#f87171' : 
-                                                 log.level === 'warn' ? '#fbbf24' : 
-                                                 log.level === 'success' ? '#4ade80' : 'inherit' 
-                                      }}>
-                                          {log.message}
+                                  <div key={i} className="flex gap-3 text-xs leading-relaxed group hover:bg-white/5 p-0.5 rounded">
+                                      <span className="text-zinc-500 shrink-0 select-none">
+                                          {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' })}
+                                      </span>
+                                      <div className="break-all">
+                                          <span className={`
+                                              ${log.level === 'error' ? 'text-red-400 font-bold' : ''}
+                                              ${log.level === 'warn' ? 'text-amber-400 font-bold' : ''}
+                                              ${log.level === 'success' ? 'text-green-400 font-bold' : ''}
+                                              ${log.level === 'info' ? 'text-zinc-300' : ''}
+                                          `}>
+                                              {log.message}
+                                          </span>
                                           {log.details && (
-                                              <div style={{ paddingLeft: 20, opacity: 0.7, fontSize: '0.8em' }}>
-                                                  {JSON.stringify(log.details)}
+                                              <div className="mt-1 pl-2 border-l-2 border-zinc-700 text-zinc-500 overflow-x-auto">
+                                                  <pre className="text-[10px]">{JSON.stringify(log.details, null, 2)}</pre>
                                               </div>
                                           )}
-                                      </span>
+                                      </div>
                                   </div>
                               ))}
                               <div ref={logEndRef} />
-                          </Box>
-                      </Paper>
-                  </Grid>
-              </Grid>
+                          </div>
+                      </div>
+                  </div>
+              </div>
           )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };

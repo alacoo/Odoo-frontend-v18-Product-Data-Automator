@@ -1,25 +1,17 @@
-
 import React, { useState } from 'react';
 import { OdooConfig, ParsedProduct, SystemHealthReport, PreCheckResult, SyncCapabilities } from '../types';
 import { authenticateOdoo, fetchOdooProducts, fetchOdooCurrencies, checkSystemHealth, runSyncPreCheck } from '../services/odooService';
 import { saveSettings, getFullSettings } from '../services/settingsService';
 import { 
     Server, Wifi, Database, Lock, User, Globe, ArrowRight, ShieldCheck, 
-    Zap, AlertTriangle, Activity, CheckCircle2, XCircle, ShieldAlert 
+    Zap, AlertTriangle, Activity, CheckCircle2, XCircle, Loader2, Check
 } from 'lucide-react';
-import { 
-    Box, Paper, Typography, TextField, Button, CircularProgress, InputAdornment, 
-    Alert, AlertTitle, Grid, Card, CardActionArea, FormControlLabel, Switch, 
-    Tooltip, Collapse, useTheme, Fade, Chip, Table, TableBody, TableCell, 
-    TableContainer, TableHead, TableRow, Dialog, DialogTitle, DialogContent, 
-    DialogActions, Stack
-} from '@mui/material';
 
 interface Props {
   onDataFetched: (products: ParsedProduct[], capabilities: SyncCapabilities) => void;
 }
 
-// Error Messages Dictionary (Arabic)
+// Error Messages Dictionary
 const ERROR_MESSAGES_AR: Record<string, string> = {
   'MISSING_HEADER': 'يرجى إدخال جميع البيانات المطلوبة',
   'AUTH_FAILED': 'بيانات الدخول غير صحيحة',
@@ -48,8 +40,6 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
   const [healthReport, setHealthReport] = useState<SystemHealthReport | null>(null);
   const [preCheckResult, setPreCheckResult] = useState<PreCheckResult | null>(null);
   const [showHealthModal, setShowHealthModal] = useState(false);
-
-  const theme = useTheme();
 
   // --- Profile Management ---
   const [profiles] = useState<OdooConfig[]>([
@@ -136,341 +126,296 @@ export const ConnectionManager: React.FC<Props> = ({ onDataFetched }) => {
   const activeProfileIndex = profiles.findIndex(p => p.url === config.url && p.db === config.db);
 
   return (
-    <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100%', 
-        p: 3,
-        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.action.hover} 100%)`
-    }}>
-      {/* System Health Dialog */}
-      <Dialog 
-        open={showHealthModal} 
-        onClose={() => setShowHealthModal(false)}
-        maxWidth="md"
-        fullWidth
-      >
-          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider' }}>
-             <Activity size={24} color={!preCheckResult?.canSync ? theme.palette.error.main : theme.palette.primary.main} />
-             System Health & Compliance Report
-             {healthReport?.odoo_version && <Chip label={`v${healthReport.odoo_version}`} size="small" sx={{ ml: 'auto' }} />}
-          </DialogTitle>
-          <DialogContent sx={{ p: 0 }}>
-              {preCheckResult && (
-                  <Box>
-                      {/* Critical Issues */}
-                      {preCheckResult.criticalIssues.length > 0 && (
-                          <Box p={2}>
-                              <Alert severity="error" variant="filled">
-                                  <AlertTitle>Critical Configuration Issues</AlertTitle>
-                                  Synchronization cannot proceed until these are fixed.
-                              </Alert>
-                              <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                                  <Table size="small">
-                                      <TableHead>
-                                          <TableRow>
-                                              <TableCell>Model</TableCell>
-                                              <TableCell>Issue</TableCell>
-                                              <TableCell>Solution</TableCell>
-                                          </TableRow>
-                                      </TableHead>
-                                      <TableBody>
-                                          {preCheckResult.criticalIssues.map((issue, idx) => (
-                                              <TableRow key={idx}>
-                                                  <TableCell sx={{ fontFamily: 'monospace' }}>{issue.model}</TableCell>
-                                                  <TableCell>{issue.message_en}</TableCell>
-                                                  <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>{issue.action}</TableCell>
-                                              </TableRow>
-                                          ))}
-                                      </TableBody>
-                                  </Table>
-                              </TableContainer>
-                          </Box>
-                      )}
+    <div className="flex h-full w-full items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-gray-200 dark:from-zinc-900 dark:to-zinc-950 font-sans">
+      
+      {/* System Health Dialog Modal */}
+      {showHealthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
+                    <Activity size={24} className={!preCheckResult?.canSync ? "text-red-500" : "text-primary-600"} />
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">System Health & Compliance Report</h2>
+                    {healthReport?.odoo_version && (
+                        <span className="ms-auto bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-mono">v{healthReport.odoo_version}</span>
+                    )}
+                </div>
+                
+                <div className="p-6 overflow-y-auto">
+                    {preCheckResult && (
+                        <div className="space-y-6">
+                            {/* Critical Issues */}
+                            {preCheckResult.criticalIssues.length > 0 && (
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold mb-2">
+                                        <AlertTriangle size={20} /> Critical Configuration Issues
+                                    </div>
+                                    <p className="text-sm text-red-600 dark:text-red-300 mb-3">Synchronization cannot proceed until these are fixed.</p>
+                                    
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-red-800 dark:text-red-200 font-semibold border-b border-red-200 dark:border-red-800">
+                                                <tr>
+                                                    <th className="pb-2">Model</th>
+                                                    <th className="pb-2">Issue</th>
+                                                    <th className="pb-2">Solution</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-red-200 dark:divide-red-800">
+                                                {preCheckResult.criticalIssues.map((issue, idx) => (
+                                                    <tr key={idx}>
+                                                        <td className="py-2 font-mono">{issue.model}</td>
+                                                        <td className="py-2">{issue.message_en}</td>
+                                                        <td className="py-2 font-bold">{issue.action}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
 
-                      {/* Warnings */}
-                      {preCheckResult.warnings.length > 0 && (
-                          <Box p={2} pt={preCheckResult.criticalIssues.length > 0 ? 0 : 2}>
-                              <Alert severity="warning">
-                                  <AlertTitle>Capabilities Limitation</AlertTitle>
-                                  The connection is successful, but some features will be restricted.
-                              </Alert>
-                              <Box mt={1}>
-                                  {preCheckResult.warnings.map((w, i) => (
-                                      <Typography key={i} variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                          <AlertTriangle size={14} /> {w.message_en} ({w.impact})
-                                      </Typography>
-                                  ))}
-                              </Box>
-                          </Box>
-                      )}
+                            {/* Warnings */}
+                            {preCheckResult.warnings.length > 0 && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold mb-2">
+                                        <AlertTriangle size={20} /> Capabilities Limitation
+                                    </div>
+                                    <p className="text-sm text-amber-600 dark:text-amber-300 mb-3">The connection is successful, but some features will be restricted.</p>
+                                    <ul className="space-y-1">
+                                        {preCheckResult.warnings.map((w, i) => (
+                                            <li key={i} className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300">
+                                                <span className="mt-0.5">•</span>
+                                                <span>{w.message_en} <span className="opacity-70">({w.impact})</span></span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
-                      {/* Capabilities Summary */}
-                      <Box p={2} bgcolor="action.hover" borderTop={1} borderColor="divider">
-                          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Authenticated Capabilities:</Typography>
-                          <Stack direction="row" spacing={1}>
-                              <Chip 
-                                  icon={preCheckResult.capabilities.canRead ? <CheckCircle2 size={16} /> : <XCircle size={16} />} 
-                                  label="READ" 
-                                  color={preCheckResult.capabilities.canRead ? 'success' : 'error'} 
-                                  variant="outlined" 
-                              />
-                              <Chip 
-                                  icon={preCheckResult.capabilities.canWrite ? <CheckCircle2 size={16} /> : <XCircle size={16} />} 
-                                  label="WRITE" 
-                                  color={preCheckResult.capabilities.canWrite ? 'success' : 'error'} 
-                                  variant="outlined" 
-                              />
-                              <Chip 
-                                  icon={preCheckResult.capabilities.canCreate ? <CheckCircle2 size={16} /> : <XCircle size={16} />} 
-                                  label="CREATE" 
-                                  color={preCheckResult.capabilities.canCreate ? 'success' : 'error'} 
-                                  variant="outlined" 
-                              />
-                          </Stack>
-                      </Box>
-                  </Box>
-              )}
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-              <Button onClick={() => setShowHealthModal(false)} color="inherit">Close</Button>
-              {preCheckResult?.canSync && (
-                  <Button 
-                    variant="contained" 
-                    onClick={() => { setShowHealthModal(false); fetchOdooProducts().then((p) => onDataFetched(p, preCheckResult.capabilities)); }}
-                    endIcon={<ArrowRight size={16} />}
-                  >
-                      Proceed Anyway
-                  </Button>
-              )}
-          </DialogActions>
-      </Dialog>
+                            {/* Capabilities */}
+                            <div className="bg-gray-50 dark:bg-zinc-800 rounded-xl p-4 border border-gray-200 dark:border-zinc-700">
+                                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Authenticated Capabilities</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(preCheckResult.capabilities).map(([key, val]) => (
+                                        <span 
+                                            key={key} 
+                                            className={`
+                                                flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold
+                                                ${val 
+                                                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' 
+                                                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 opacity-60'
+                                                }
+                                            `}
+                                        >
+                                            {val ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                                            {key.replace('can', '').toUpperCase()}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-      <Paper 
-        elevation={6} 
-        sx={{ 
-            width: '100%', 
-            maxWidth: 1100, 
-            borderRadius: 4, 
-            overflow: 'hidden', 
-            display: 'flex', 
-            flexDirection: { xs: 'column', md: 'row' },
-            minHeight: 600
-        }}
-      >
-          {/* Left Side: Profiles & Branding */}
-          <Box sx={{ 
-              flex: { xs: 'none', md: 2 }, 
-              bgcolor: 'primary.main', 
-              color: 'primary.contrastText',
-              p: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-              overflow: 'hidden'
-          }}>
-              {/* Decor Circles */}
-              <Box sx={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.1)' }} />
-              <Box sx={{ position: 'absolute', bottom: -20, left: -20, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
+                <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3 bg-gray-50 dark:bg-zinc-900">
+                    <button 
+                        onClick={() => setShowHealthModal(false)}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-lg transition-colors font-medium"
+                    >
+                        Close
+                    </button>
+                    {preCheckResult?.canSync && (
+                        <button 
+                            onClick={() => { setShowHealthModal(false); fetchOdooProducts().then((p) => onDataFetched(p, preCheckResult!.capabilities)); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-bold shadow-lg shadow-primary-600/20"
+                        >
+                            Proceed Anyway <ArrowRight size={18} />
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
 
-              <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 2 }}>
-                          <Server size={24} color="white" />
-                      </Box>
-                      <Typography variant="h5" fontWeight="800">Odoo Connector</Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 4 }}>
-                      Select an environment to synchronize product data.
-                  </Typography>
+      <div className="w-full max-w-5xl bg-white dark:bg-zinc-800 rounded-3xl shadow-xl border border-gray-100 dark:border-zinc-700 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+          
+          {/* Left Panel: Branding & Profiles */}
+          <div className="md:w-2/5 bg-primary-600 p-8 text-white flex flex-col relative overflow-hidden">
+              {/* Abstract Shapes */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
-                  <Box display="flex" flexDirection="column" gap={2}>
+              <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/10 shadow-inner">
+                          <Server size={28} className="text-white" />
+                      </div>
+                      <h1 className="text-2xl font-extrabold tracking-tight">Odoo Connector</h1>
+                  </div>
+                  <p className="text-primary-100 text-sm mb-8 leading-relaxed opacity-90">
+                      Sync product data seamlessly with Odoo v18 via secure JSON-RPC protocol.
+                  </p>
+
+                  <div className="space-y-3">
                       {profiles.map((p, i) => (
-                          <Card 
-                            key={i} 
-                            elevation={0}
-                            sx={{ 
-                                bgcolor: activeProfileIndex === i ? 'white' : 'rgba(255,255,255,0.1)', 
-                                color: activeProfileIndex === i ? 'primary.main' : 'white',
-                                borderRadius: 3,
-                                transition: 'all 0.2s ease-in-out',
-                                '&:hover': { bgcolor: activeProfileIndex === i ? 'white' : 'rgba(255,255,255,0.2)' }
-                            }}
+                          <button
+                              key={i}
+                              onClick={() => loadProfile(p)}
+                              className={`
+                                  w-full text-start p-4 rounded-xl border transition-all duration-200 group
+                                  ${activeProfileIndex === i 
+                                      ? 'bg-white text-primary-700 border-white shadow-lg' 
+                                      : 'bg-white/10 text-white border-white/10 hover:bg-white/20'
+                                  }
+                              `}
                           >
-                              <CardActionArea onClick={() => loadProfile(p)} sx={{ p: 2 }}>
-                                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                                      <Box display="flex" alignItems="center" gap={2}>
-                                          {i === 0 ? <ShieldCheck size={20} /> : <Zap size={20} />}
-                                          <Box>
-                                              <Typography variant="subtitle2" fontWeight="bold">{p.name}</Typography>
-                                              <Typography variant="caption" sx={{ opacity: 0.7 }}>{p.db}</Typography>
-                                          </Box>
-                                      </Box>
-                                      {activeProfileIndex === i && <ArrowRight size={18} />}
-                                  </Box>
-                              </CardActionArea>
-                          </Card>
+                              <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2 font-bold">
+                                      {i === 0 ? <ShieldCheck size={18} /> : <Zap size={18} />}
+                                      {p.name}
+                                  </div>
+                                  {activeProfileIndex === i && <ArrowRight size={18} className="animate-in slide-in-from-left-2" />}
+                              </div>
+                              <div className={`text-xs font-mono truncate opacity-70 group-hover:opacity-100 ${activeProfileIndex === i ? 'text-primary-600' : 'text-primary-200'}`}>
+                                  {p.db}
+                              </div>
+                          </button>
                       ))}
-                  </Box>
-              </Box>
+                  </div>
+              </div>
 
-              <Box sx={{ mt: 'auto', pt: 4, position: 'relative', zIndex: 1 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', textAlign: 'center' }}>
-                      Secure JSON-RPC Protocol • Odoo v18 Compatible
-                  </Typography>
-              </Box>
-          </Box>
+              <div className="mt-auto pt-8 text-[10px] text-primary-200 text-center relative z-10">
+                  Secure JSON-RPC Protocol • Odoo v18 Compatible
+              </div>
+          </div>
 
-          {/* Right Side: Form */}
-          <Box sx={{ 
-              flex: { xs: 'none', md: 3 }, 
-              p: { xs: 3, md: 5 },
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-          }}>
-              <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ color: 'text.primary' }}>
-                  إعدادات الاتصال
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-                  أدخل بيانات الاتصال الخاصة بنظام أودو أو اختر ملف تعريف جاهز.
-              </Typography>
+          {/* Right Panel: Form */}
+          <div className="md:w-3/5 p-8 lg:p-12 flex flex-col justify-center">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Connection Settings</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Enter your Odoo instance credentials to establish a secure connection.</p>
 
-              <Grid container spacing={2}>
-                  <Grid xs={12}>
-                      <TextField
-                          label="رابط الخادم (Server URL)"
-                          placeholder="https://odoo.example.com"
-                          value={config.url}
-                          onChange={e => setConfig({...config, url: e.target.value})}
-                          fullWidth
-                          variant="outlined"
-                          InputProps={{
-                              startAdornment: <InputAdornment position="start"><Globe size={18} /></InputAdornment>,
-                          }}
-                      />
-                  </Grid>
+              <div className="space-y-5">
+                  <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Server URL</label>
+                      <div className="relative">
+                          <Globe size={18} className="absolute inset-y-0 left-3 my-auto text-gray-400 pointer-events-none" />
+                          <input 
+                              type="text" 
+                              placeholder="https://odoo.example.com"
+                              value={config.url}
+                              onChange={e => setConfig({...config, url: e.target.value})}
+                              className="block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                          />
+                      </div>
+                  </div>
 
-                  <Grid xs={12} sm={6}>
-                      <TextField
-                          label="قاعدة البيانات (Database)"
-                          value={config.db}
-                          onChange={e => setConfig({...config, db: e.target.value})}
-                          fullWidth
-                          variant="outlined"
-                          InputProps={{
-                              startAdornment: <InputAdornment position="start"><Database size={18} /></InputAdornment>,
-                          }}
-                      />
-                  </Grid>
+                  <div className="grid grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Database</label>
+                          <div className="relative">
+                              <Database size={18} className="absolute inset-y-0 left-3 my-auto text-gray-400 pointer-events-none" />
+                              <input 
+                                  type="text" 
+                                  value={config.db}
+                                  onChange={e => setConfig({...config, db: e.target.value})}
+                                  className="block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                              />
+                          </div>
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Login (Email)</label>
+                          <div className="relative">
+                              <User size={18} className="absolute inset-y-0 left-3 my-auto text-gray-400 pointer-events-none" />
+                              <input 
+                                  type="text" 
+                                  value={config.username}
+                                  onChange={e => setConfig({...config, username: e.target.value})}
+                                  className="block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                              />
+                          </div>
+                      </div>
+                  </div>
 
-                  <Grid xs={12} sm={6}>
-                      <TextField
-                          label="البريد الإلكتروني (Login)"
-                          value={config.username}
-                          onChange={e => setConfig({...config, username: e.target.value})}
-                          fullWidth
-                          variant="outlined"
-                          InputProps={{
-                              startAdornment: <InputAdornment position="start"><User size={18} /></InputAdornment>,
-                          }}
-                      />
-                  </Grid>
+                  <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Password / API Key</label>
+                      <div className="relative">
+                          <Lock size={18} className="absolute inset-y-0 left-3 my-auto text-gray-400 pointer-events-none" />
+                          <input 
+                              type="password" 
+                              value={config.password || ''}
+                              onChange={e => setConfig({...config, password: e.target.value})}
+                              className="block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                          />
+                      </div>
+                  </div>
 
-                  <Grid xs={12}>
-                      <TextField
-                          label="كلمة المرور / API Key"
-                          type="password"
-                          value={config.password || ''}
-                          onChange={e => setConfig({...config, password: e.target.value})}
-                          fullWidth
-                          variant="outlined"
-                          InputProps={{
-                              startAdornment: <InputAdornment position="start"><Lock size={18} /></InputAdornment>,
-                          }}
-                      />
-                  </Grid>
+                  {/* Feature Toggle */}
+                  <div className="bg-gray-50 dark:bg-zinc-700/30 p-4 rounded-xl border border-gray-100 dark:border-zinc-700 flex items-start gap-3">
+                      <div className="p-1 text-amber-500 mt-0.5">
+                          <AlertTriangle size={16} />
+                      </div>
+                      <div className="flex-1">
+                          <label className="flex items-center gap-2 cursor-pointer mb-1">
+                              <input 
+                                  type="checkbox" 
+                                  checked={config.enablePricelists || false} 
+                                  onChange={e => setConfig({...config, enablePricelists: e.target.checked})}
+                                  className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                              />
+                              <span className="font-bold text-sm text-gray-800 dark:text-gray-200">Enable Pricelists (Experimental)</span>
+                          </label>
+                          {config.enablePricelists && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 animate-in fade-in slide-in-from-top-1">
+                                  Sync multi-currency prices (USD, SAR). May impact performance.
+                              </p>
+                          )}
+                      </div>
+                  </div>
+              </div>
 
-                  <Grid xs={12}>
-                     <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.default' }}>
-                        <FormControlLabel
-                            control={
-                                <Switch 
-                                    checked={config.enablePricelists || false} 
-                                    onChange={e => setConfig({...config, enablePricelists: e.target.checked})} 
-                                    color="warning"
-                                />
-                            }
-                            label={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="body2" fontWeight="bold">تفعيل قوائم الأسعار (تجريبي)</Typography>
-                                    <Tooltip title="هذه الميزة قد تسبب مشاكل في الأداء حالياً. قم بتفعيلها فقط إذا كنت بحاجة لمزامنة أسعار بعملات متعددة.">
-                                        <AlertTriangle size={16} color={theme.palette.warning.main} />
-                                    </Tooltip>
-                                </Box>
-                            }
-                        />
-                        <Collapse in={config.enablePricelists}>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                سيقوم النظام بمحاولة إنشاء ومزامنة قوائم أسعار للعملات المتعددة (USD, SAR) أثناء عملية النقل.
-                            </Typography>
-                        </Collapse>
-                     </Box>
-                  </Grid>
-              </Grid>
-
-              <Box sx={{ mt: 4 }}>
-                  <Button 
+              <div className="mt-8 space-y-4">
+                  <button 
                       onClick={handleConnect}
                       disabled={isLoading}
-                      variant="contained"
-                      size="large"
-                      fullWidth
-                      sx={{ 
-                          py: 1.5, 
-                          borderRadius: 2, 
-                          fontWeight: 'bold',
-                          fontSize: '1rem',
-                          boxShadow: 2
-                      }}
-                      startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <Wifi />}
+                      className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary-600/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                      {isLoading ? 'جاري التحقق...' : 'اتصال بقاعدة البيانات'}
-                  </Button>
-              </Box>
+                      {isLoading ? (
+                          <>
+                              <Loader2 size={20} className="animate-spin" /> Verifying Connection...
+                          </>
+                      ) : (
+                          <>
+                              <Wifi size={20} /> Connect to Database
+                          </>
+                      )}
+                  </button>
 
-              <Fade in={status !== 'idle'}>
-                  <Box sx={{ mt: 3 }}>
-                      <Alert 
-                          severity={status === 'success' ? 'success' : 'error'}
-                          variant="outlined"
-                          icon={false}
-                          sx={{ border: 1, borderRadius: 2 }}
-                          action={
-                              (status === 'success' || preCheckResult) ? (
-                                  <Button color="inherit" size="small" onClick={() => setShowHealthModal(true)}>
-                                      Review Health
-                                  </Button>
-                              ) : undefined
-                          }
-                      >
-                          <AlertTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {status === 'success' ? <ShieldCheck size={18} /> : <AlertTriangle size={18} />}
-                              {status === 'success' ? 'تم الاتصال بنجاح' : 'فشل الاتصال'}
-                          </AlertTitle>
-                          {message}
-                          {errorDetails && (
-                              <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary', fontFamily: 'monospace' }}>
-                                  {errorDetails}
-                              </Typography>
+                  {status !== 'idle' && (
+                      <div className={`p-4 rounded-xl border flex gap-3 animate-in fade-in slide-in-from-bottom-2 ${
+                          status === 'success' 
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300' 
+                          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+                      }`}>
+                          <div className="mt-0.5">
+                              {status === 'success' ? <ShieldCheck size={20} /> : <AlertTriangle size={20} />}
+                          </div>
+                          <div className="flex-1">
+                              <h4 className="font-bold text-sm mb-0.5">
+                                  {status === 'success' ? 'Connection Successful' : 'Connection Failed'}
+                              </h4>
+                              <p className="text-xs opacity-90">{message}</p>
+                              {errorDetails && <p className="text-[10px] font-mono mt-1 opacity-70 p-1 bg-black/5 rounded">{errorDetails}</p>}
+                          </div>
+                          {(status === 'success' || preCheckResult) && (
+                              <button onClick={() => setShowHealthModal(true)} className="text-xs font-bold underline self-start whitespace-nowrap">
+                                  Review Report
+                              </button>
                           )}
-                      </Alert>
-                  </Box>
-              </Fade>
-          </Box>
-      </Paper>
-    </Box>
+                      </div>
+                  )}
+              </div>
+          </div>
+      </div>
+    </div>
   );
 };

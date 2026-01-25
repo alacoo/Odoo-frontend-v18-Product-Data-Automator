@@ -1,2 +1,1 @@
-// This component is deprecated and unused.
-export {};
+// File deleted (Cleaned up)

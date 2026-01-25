@@ -1,67 +1,43 @@
-
 import React from 'react';
 import { DashboardStat } from '../types';
-import { Box, Paper, Typography, useTheme, alpha } from '@mui/material';
 
 interface Props {
   stats: any[]; 
 }
 
 export const DashboardStats: React.FC<Props> = ({ stats }) => {
-  const theme = useTheme();
-
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
       {stats.map((stat, idx) => {
-        // Resolve color from theme or fallback
-        const colorKey = (stat.color as 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success') || 'primary';
-        const colorMain = theme.palette[colorKey]?.main || theme.palette.primary.main;
+        const colorMap: Record<string, string> = {
+            'primary': 'text-primary-600 bg-primary-50',
+            'secondary': 'text-secondary-600 bg-secondary-50',
+            'info': 'text-blue-600 bg-blue-50',
+            'success': 'text-green-600 bg-green-50',
+            'warning': 'text-amber-600 bg-amber-50',
+            'error': 'text-red-600 bg-red-50',
+        };
+
+        const colorClass = colorMap[stat.color] || colorMap['primary'];
         
         return (
-        <Paper 
+        <div 
             key={idx} 
-            elevation={0}
-            sx={{ 
-                p: 1.5, 
-                px: 2,
-                borderRadius: 3, 
-                border: 1, 
-                borderColor: 'divider',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                bgcolor: 'background.paper',
-                height: 72, // Reduced fixed height for compactness
-                transition: 'all 0.2s',
-                '&:hover': {
-                    borderColor: colorMain,
-                    boxShadow: theme.shadows[1]
-                }
-            }}
+            className="group p-4 px-5 rounded-xl border border-gray-200 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-center justify-between h-[72px] transition-all duration-200 hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700"
         >
-          <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
-             <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: 0.5, display: 'block', mb: 0.5 }}>
+          <div className="flex-1 min-w-0 me-3">
+             <span className="block text-[0.7rem] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 {stat.label}
-             </Typography>
-             <Typography variant="h6" fontWeight={800} noWrap sx={{ lineHeight: 1, fontSize: '1.1rem' }} title={String(stat.value)}>
+             </span>
+             <span className="block text-xl font-extrabold text-gray-900 dark:text-white truncate" title={String(stat.value)}>
                 {stat.value}
-             </Typography>
-          </Box>
-          <Box 
-            sx={{ 
-                p: 1, 
-                borderRadius: 2, 
-                bgcolor: alpha(colorMain, 0.1),
-                color: colorMain,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}
-          >
+             </span>
+          </div>
+          <div className={`p-2.5 rounded-lg flex items-center justify-center ${colorClass}`}>
              <stat.icon size={20} />
-          </Box>
-        </Paper>
+          </div>
+        </div>
       )})}
-    </Box>
+    </div>
   );
 };

@@ -1,11 +1,6 @@
-
 import React, { useState } from 'react';
 import { OdooPricelist } from '../types';
-import { Search, Banknote, Globe } from 'lucide-react';
-import { 
-    Box, Paper, Typography, TextField, InputAdornment, Table, TableBody, 
-    TableCell, TableContainer, TableHead, TableRow, Chip, useTheme, alpha, Fade
-} from '@mui/material';
+import { Search, Banknote, Globe, Package } from 'lucide-react';
 
 interface Props {
     pricelists: OdooPricelist[];
@@ -13,7 +8,6 @@ interface Props {
 
 export const PricelistManager: React.FC<Props> = ({ pricelists }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const theme = useTheme();
 
     const filteredList = pricelists.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -21,90 +15,78 @@ export const PricelistManager: React.FC<Props> = ({ pricelists }) => {
     );
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
+        <div className="flex flex-col h-full bg-gray-50/50 dark:bg-zinc-900/50 font-sans">
             {/* Header */}
-            <Paper 
-                elevation={0} 
-                sx={{ 
-                    p: 3, 
-                    mb: 3, 
-                    borderBottom: 1, 
-                    borderColor: 'divider', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    borderRadius: 0,
-                    bgcolor: 'background.paper'
-                }}
-            >
-                <Box>
-                    <Typography variant="h5" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Banknote className="text-primary" /> Pricelists
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Banknote className="text-primary-600 dark:text-primary-400" size={24} /> 
+                        Pricelists
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         Manage and view your Odoo sales pricelists and currency configurations.
-                    </Typography>
-                </Box>
+                    </p>
+                </div>
 
-                <TextField 
-                    placeholder="Search pricelists..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    size="small"
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>,
-                    }}
-                    sx={{ width: 280 }}
-                />
-            </Paper>
+                <div className="relative w-full sm:w-72 group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search size={18} className="text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                    </div>
+                    <input 
+                        type="text"
+                        placeholder="Search pricelists..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all dark:text-white"
+                    />
+                </div>
+            </div>
 
-            <Box sx={{ px: 3, pb: 3, overflowY: 'auto', flex: 1 }}>
+            {/* List Content */}
+            <div className="flex-1 overflow-y-auto p-6">
                 {filteredList.length === 0 ? (
-                    <Fade in>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, color: 'text.secondary', opacity: 0.7 }}>
-                            <Banknote size={64} strokeWidth={1} style={{ marginBottom: 24, opacity: 0.5 }} />
-                            <Typography variant="h5" fontWeight="bold">No pricelists found</Typography>
-                            <Typography variant="body1">Ensure you are connected to Odoo and have configured pricelists.</Typography>
-                        </Box>
-                    </Fade>
+                    <div className="flex flex-col items-center justify-center h-80 text-gray-400 animate-in fade-in">
+                        <div className="bg-gray-100 dark:bg-zinc-800 p-6 rounded-full mb-4">
+                            <Banknote size={48} strokeWidth={1} className="text-gray-300 dark:text-zinc-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">No pricelists found</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md text-center">
+                            Ensure you are connected to Odoo and have configured pricelists in the backend.
+                        </p>
+                    </div>
                 ) : (
-                    <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ borderRadius: 3 }}>
-                        <Table>
-                            <TableHead sx={{ bgcolor: 'background.default' }}>
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Currency</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', width: 100 }}>ID</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
+                    <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-gray-50 dark:bg-zinc-700/50 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-200 dark:border-zinc-700">
+                                <tr>
+                                    <th className="px-6 py-4">Name</th>
+                                    <th className="px-6 py-4">Currency</th>
+                                    <th className="px-6 py-4 w-32 text-right">ID</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
                                 {filteredList.map((row) => (
-                                    <TableRow key={row.id} hover>
-                                        <TableCell>
-                                            <Typography variant="body2" fontWeight="bold">{row.name}</Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip 
-                                                icon={<Globe size={14} />} 
-                                                label={row.currencyName} 
-                                                size="small" 
-                                                variant="outlined" 
-                                                color="primary"
-                                                sx={{ borderRadius: 1 }}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Typography variant="caption" fontFamily="monospace" color="text.secondary">
+                                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <span className="font-bold text-gray-900 dark:text-white">{row.name}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-100 dark:border-blue-800">
+                                                <Globe size={12} /> {row.currencyName}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="font-mono text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded">
                                                 {row.id}
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
+                                            </span>
+                                        </td>
+                                    </tr>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                            </tbody>
+                        </table>
+                    </div>
                 )}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };

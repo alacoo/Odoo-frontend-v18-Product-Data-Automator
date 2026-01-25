@@ -1,16 +1,10 @@
-
 import React, { useState, useMemo } from 'react';
-import { Search, Scale, Ruler, Clock, Box as BoxIcon, LayoutGrid, Copy, Check, Info, MousePointerClick } from 'lucide-react';
+import { Search, Scale, Ruler, Clock, Box as BoxIcon, LayoutGrid, Copy, Check, Info } from 'lucide-react';
 import { UOM_DATA } from '../data/uomData';
-import { 
-    Box, TextField, Typography, Grid, Card, CardContent, 
-    Chip, InputAdornment, IconButton, Tooltip, Avatar, useTheme, alpha, Fade, Paper, Divider 
-} from '@mui/material';
 
 export const UomViewer: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const theme = useTheme();
 
   const filteredData = useMemo(() => {
       return UOM_DATA.map(cat => ({
@@ -24,209 +18,151 @@ export const UomViewer: React.FC = () => {
 
   const totalUnits = useMemo(() => filteredData.reduce((acc, cat) => acc + cat.units.length, 0), [filteredData]);
 
-  const getCategoryConfig = (id: string) => {
-    if (id.includes('kgm')) return { icon: Scale, color: theme.palette.warning.main, label: 'Weight' };
-    if (id.includes('length')) return { icon: Ruler, color: theme.palette.info.main, label: 'Length' };
-    if (id.includes('wtime')) return { icon: Clock, color: theme.palette.error.main, label: 'Time' };
-    if (id.includes('surface')) return { icon: LayoutGrid, color: theme.palette.success.main, label: 'Surface' };
-    if (id.includes('vol')) return { icon: BoxIcon, color: '#8e44ad', label: 'Volume' }; // Purple
-    return { icon: BoxIcon, color: theme.palette.primary.main, label: 'Unit' };
+  const getCategoryStyles = (id: string) => {
+    if (id.includes('kgm')) return { icon: Scale, colorClass: 'text-amber-600 dark:text-amber-400', bgClass: 'bg-amber-50 dark:bg-amber-900/20', borderClass: 'hover:border-amber-300 dark:hover:border-amber-700', badgeBg: 'bg-amber-100 dark:bg-amber-900/30', badgeText: 'text-amber-800 dark:text-amber-200', accent: 'bg-amber-500' };
+    if (id.includes('length')) return { icon: Ruler, colorClass: 'text-blue-600 dark:text-blue-400', bgClass: 'bg-blue-50 dark:bg-blue-900/20', borderClass: 'hover:border-blue-300 dark:hover:border-blue-700', badgeBg: 'bg-blue-100 dark:bg-blue-900/30', badgeText: 'text-blue-800 dark:text-blue-200', accent: 'bg-blue-500' };
+    if (id.includes('wtime')) return { icon: Clock, colorClass: 'text-red-600 dark:text-red-400', bgClass: 'bg-red-50 dark:bg-red-900/20', borderClass: 'hover:border-red-300 dark:hover:border-red-700', badgeBg: 'bg-red-100 dark:bg-red-900/30', badgeText: 'text-red-800 dark:text-red-200', accent: 'bg-red-500' };
+    if (id.includes('surface')) return { icon: LayoutGrid, colorClass: 'text-emerald-600 dark:text-emerald-400', bgClass: 'bg-emerald-50 dark:bg-emerald-900/20', borderClass: 'hover:border-emerald-300 dark:hover:border-emerald-700', badgeBg: 'bg-emerald-100 dark:bg-emerald-900/30', badgeText: 'text-emerald-800 dark:text-emerald-200', accent: 'bg-emerald-500' };
+    if (id.includes('vol')) return { icon: BoxIcon, colorClass: 'text-purple-600 dark:text-purple-400', bgClass: 'bg-purple-50 dark:bg-purple-900/20', borderClass: 'hover:border-purple-300 dark:hover:border-purple-700', badgeBg: 'bg-purple-100 dark:bg-purple-900/30', badgeText: 'text-purple-800 dark:text-purple-200', accent: 'bg-purple-500' };
+    return { icon: BoxIcon, colorClass: 'text-cyan-600 dark:text-cyan-400', bgClass: 'bg-cyan-50 dark:bg-cyan-900/20', borderClass: 'hover:border-cyan-300 dark:hover:border-cyan-700', badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30', badgeText: 'text-cyan-800 dark:text-cyan-200', accent: 'bg-cyan-500' };
   };
 
-  const handleCopy = (text: string, context: string) => {
+  const handleCopy = (text: string) => {
       navigator.clipboard.writeText(text);
       setCopiedId(text);
       setTimeout(() => setCopiedId(null), 1500);
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
+    <div className="flex flex-col h-full bg-gray-50/50 dark:bg-zinc-900/50 p-6 overflow-hidden font-sans">
        {/* Header Section */}
-       <Paper 
-            elevation={0} 
-            sx={{ 
-                p: 3, 
-                mb: 3, 
-                borderBottom: 1, 
-                borderColor: 'divider', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 2,
-                borderRadius: 0,
-                bgcolor: 'background.paper'
-            }}
-       >
-           <Box>
-               <Typography variant="h5" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                   <Ruler className="text-primary" /> Units of Measure
-               </Typography>
-               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+       <div className="bg-white dark:bg-zinc-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-700 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+           <div>
+               <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                   <Ruler className="text-cyan-600 dark:text-cyan-400" size={24} />
+                   <span>Units of Measure</span>
+               </h1>
+               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                    Reference guide for Odoo v18 measurement categories and XML IDs.
-               </Typography>
-           </Box>
+               </p>
+           </div>
 
-           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' }, mr: 2 }}>
-                    <Typography variant="caption" display="block" color="text.secondary">Categories</Typography>
-                    <Typography variant="h6" lineHeight={1} fontWeight="bold">{filteredData.length}</Typography>
-                </Box>
-                <Box sx={{ width: 1, height: 40, bgcolor: 'divider', display: { xs: 'none', md: 'block' } }} />
-                <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' }, mr: 2 }}>
-                    <Typography variant="caption" display="block" color="text.secondary">Total Units</Typography>
-                    <Typography variant="h6" lineHeight={1} fontWeight="bold">{totalUnits}</Typography>
-                </Box>
+           <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="hidden md:block text-start border-e border-gray-200 dark:border-zinc-700 pe-4">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Categories</span>
+                    <div className="text-lg font-bold text-gray-800 dark:text-gray-200 leading-none">{filteredData.length}</div>
+                </div>
+                <div className="hidden md:block text-start border-e border-gray-200 dark:border-zinc-700 pe-4">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Total Units</span>
+                    <div className="text-lg font-bold text-gray-800 dark:text-gray-200 leading-none">{totalUnits}</div>
+                </div>
 
-                <TextField 
-                    placeholder="Search units..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    size="small"
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>,
-                    }}
-                    sx={{ width: 280 }}
-                />
-           </Box>
-       </Paper>
+                <div className="relative w-full md:w-72 group">
+                    <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
+                        <Search size={18} className="text-gray-400 dark:text-gray-500 group-focus-within:text-cyan-600 transition-colors" />
+                    </div>
+                    <input 
+                        type="text"
+                        placeholder="Search units..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full ps-10 pe-3 py-2.5 border border-gray-200 dark:border-zinc-600 rounded-xl leading-5 bg-gray-50 dark:bg-zinc-700/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:bg-white dark:focus:bg-zinc-700 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-200 sm:text-sm text-start"
+                    />
+                </div>
+           </div>
+       </div>
 
-      <Box sx={{ px: 3, pb: 3, overflowY: 'auto', flex: 1 }}>
-        <Grid container spacing={3}>
+      {/* Grid Content */}
+      <div className="flex-1 overflow-y-auto pr-2 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredData.map(cat => {
-            const { icon: Icon, color, label } = getCategoryConfig(cat.id);
+            const { icon: Icon, colorClass, bgClass, borderClass, badgeBg, badgeText, accent } = getCategoryStyles(cat.id);
+            const isCopied = copiedId === cat.id;
             
             return (
-                <Grid xs={12} md={6} xl={4} key={cat.id}>
-                    <Card 
-                        elevation={0}
-                        sx={{ 
-                            height: '100%', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            borderRadius: 3, 
-                            border: 1, 
-                            borderColor: 'divider',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            position: 'relative',
-                            overflow: 'visible',
-                            '&:hover': { 
-                                borderColor: color, 
-                                boxShadow: `0 8px 24px ${alpha(color, 0.15)}`,
-                                transform: 'translateY(-2px)'
-                            }
-                        }}
-                    >
-                        {/* Decorative Top Line */}
-                        <Box sx={{ position: 'absolute', top: -1, left: 20, right: 20, height: 3, bgcolor: color, borderRadius: '0 0 4px 4px', opacity: 0.8 }} />
+                <div 
+                    key={cat.id}
+                    className={`group relative flex flex-col bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${borderClass}`}
+                >
+                    {/* Decorative Top Line */}
+                    <div className={`absolute top-0 left-5 right-5 h-1 rounded-b-md opacity-80 ${accent}`} />
 
-                        <CardContent sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            
-                            {/* Card Header */}
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                    <Avatar variant="rounded" sx={{ bgcolor: alpha(color, 0.1), color: color, width: 48, height: 48, borderRadius: 2 }}>
-                                        <Icon size={24} strokeWidth={1.5} />
-                                    </Avatar>
-                                    <Box>
-                                        <Typography variant="caption" sx={{ color: color, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                            {label}
-                                        </Typography>
-                                        <Typography variant="h6" fontWeight="bold">
-                                            {cat.name}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                                
-                                <Tooltip title={copiedId === cat.id ? "Copied ID!" : "Copy Category ID"}>
-                                    <IconButton 
-                                        size="small" 
-                                        onClick={() => handleCopy(cat.id, 'id')}
-                                        sx={{ 
-                                            bgcolor: 'action.hover', 
-                                            border: 1, 
-                                            borderColor: 'divider',
-                                            '&:hover': { bgcolor: color, color: 'white', borderColor: color } 
-                                        }}
+                    <div className="p-5 flex-1 flex flex-col gap-4">
+                        
+                        {/* Card Header */}
+                        <div className="flex justify-between items-start mt-2">
+                            <div className="flex gap-3 items-center">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bgClass} ${colorClass}`}>
+                                    <Icon size={24} strokeWidth={1.5} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{cat.name}</h3>
+                                    <div 
+                                        onClick={() => handleCopy(cat.id)}
+                                        className="flex items-center gap-1.5 cursor-pointer group/id"
                                     >
-                                        {copiedId === cat.id ? <Check size={16} /> : <Copy size={16} />}
-                                    </IconButton>
-                                </Tooltip>
-                            </Box>
-
-                            {/* ID Display */}
-                            <Box 
-                                onClick={() => handleCopy(cat.id, 'id')}
-                                sx={{ 
-                                    fontFamily: 'monospace', 
-                                    fontSize: 11, 
-                                    color: 'text.secondary', 
-                                    bgcolor: 'background.default', 
-                                    p: 1, 
-                                    borderRadius: 1, 
-                                    border: 1, 
-                                    borderColor: 'divider',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    cursor: 'pointer',
-                                    '&:hover': { color: 'text.primary', borderColor: color }
-                                }}
+                                        <Info size={12} className="text-gray-400 dark:text-gray-500 group-hover/id:text-gray-600 dark:group-hover/id:text-gray-300" />
+                                        <code className="text-xs font-mono text-gray-500 dark:text-gray-400 group-hover/id:text-gray-800 dark:group-hover/id:text-gray-200 transition-colors bg-gray-50 dark:bg-zinc-700 px-1.5 py-0.5 rounded border border-gray-100 dark:border-zinc-600">
+                                            {cat.id}
+                                        </code>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button 
+                                onClick={() => handleCopy(cat.id)}
+                                title={isCopied ? "Copied ID!" : "Copy Category ID"}
+                                className={`p-2 rounded-lg border transition-all duration-200 ${
+                                    isCopied 
+                                    ? `bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400` 
+                                    : `bg-gray-50 dark:bg-zinc-700 border-gray-100 dark:border-zinc-600 text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-zinc-600 hover:border-gray-300 dark:hover:border-zinc-500 hover:text-gray-700 dark:hover:text-gray-300 hover:shadow-sm`
+                                }`}
                             >
-                                <Info size={12} />
-                                {cat.id}
-                            </Box>
+                                {isCopied ? <Check size={16} /> : <Copy size={16} />}
+                            </button>
+                        </div>
 
-                            <Divider />
+                        <div className="h-px bg-gray-100 dark:bg-zinc-700 w-full" />
 
-                            {/* Units List */}
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                {cat.units.map((unit, idx) => (
-                                    <Tooltip key={idx} title="Click to copy unit name" arrow>
-                                        <Chip 
-                                            label={unit}
-                                            onClick={() => handleCopy(unit, 'unit')}
-                                            size="small"
-                                            icon={copiedId === unit ? <Check size={12} /> : undefined}
-                                            sx={{ 
-                                                borderRadius: 1.5, 
-                                                bgcolor: copiedId === unit ? alpha(color, 0.2) : alpha(theme.palette.action.hover, 0.5), 
-                                                color: copiedId === unit ? color : 'text.primary',
-                                                border: 1, 
-                                                borderColor: copiedId === unit ? color : 'transparent',
-                                                fontWeight: 500,
-                                                '&:hover': { 
-                                                    bgcolor: alpha(color, 0.1),
-                                                    color: color,
-                                                    borderColor: alpha(color, 0.3)
-                                                }
-                                            }}
-                                        />
-                                    </Tooltip>
-                                ))}
-                                {cat.units.length === 0 && (
-                                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-                                        No matching units found.
-                                    </Typography>
-                                )}
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                        {/* Units List */}
+                        <div className="flex flex-wrap gap-2">
+                            {cat.units.map((unit, idx) => {
+                                const unitCopied = copiedId === unit;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleCopy(unit)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center gap-1.5 ${
+                                            unitCopied 
+                                            ? `${bgClass} ${colorClass} border-transparent ring-1 ring-offset-1 ring-current`
+                                            : `${badgeBg} ${badgeText} border-transparent hover:brightness-95 hover:shadow-sm`
+                                        }`}
+                                    >
+                                        {unitCopied && <Check size={12} />}
+                                        {unit}
+                                    </button>
+                                );
+                            })}
+                            {cat.units.length === 0 && (
+                                <span className="text-xs text-gray-400 dark:text-gray-500 italic">No matching units found.</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
             );
             })}
-        </Grid>
+        </div>
         
         {filteredData.length === 0 && (
-            <Fade in>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, color: 'text.secondary', opacity: 0.7 }}>
-                    <Search size={64} strokeWidth={1} style={{ marginBottom: 24, opacity: 0.5 }} />
-                    <Typography variant="h5" fontWeight="bold">No categories found</Typography>
-                    <Typography variant="body1">Try searching for a specific unit or category name.</Typography>
-                </Box>
-            </Fade>
+            <div className="flex flex-col items-center justify-center h-96 text-gray-400 dark:text-gray-500 animate-in fade-in duration-500">
+                <div className="bg-gray-100 dark:bg-zinc-800 p-6 rounded-full mb-6">
+                    <Search size={48} strokeWidth={1.5} className="text-gray-300 dark:text-zinc-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">No categories found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">Try searching for a specific unit or category name.</p>
+            </div>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };

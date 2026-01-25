@@ -1,15 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { ParsedProduct, GlobalAttributeConfig, OdooExportData } from '../types';
 import { generateOdooData } from '../utils/csvGenerator';
-import { FileDown, Eye, Download, FileText, ChevronRight, AlertCircle, Check, Columns } from 'lucide-react';
-import { 
-    Box, Paper, Typography, Button, Checkbox, IconButton, Divider, 
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-    List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-    useTheme, alpha, Chip, FormControlLabel, Tooltip
-} from '@mui/material';
+import { FileDown, Eye, Download, FileText, ChevronRight, AlertCircle, Check, Columns, ArrowLeft } from 'lucide-react';
 
 interface Props {
   products: ParsedProduct[];
@@ -34,8 +27,6 @@ export const ExportConfigurator: React.FC<Props> = ({ products, attributeConfigs
     productTemplates: true,
     productVariants: true,
   });
-
-  const theme = useTheme();
 
   // Raw data generated from current state
   const rawData: OdooExportData = useMemo(() => {
@@ -130,242 +121,188 @@ export const ExportConfigurator: React.FC<Props> = ({ products, attributeConfigs
   const allColumns = rawData[activeFile].length > 0 ? Object.keys(rawData[activeFile][0]) : [];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-900 font-sans">
       {/* Header */}
-      <Paper 
-        elevation={0} 
-        sx={{ 
-            px: 3, py: 2, 
-            borderBottom: 1, borderColor: 'divider', 
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            zIndex: 10, bgcolor: 'background.paper'
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton onClick={onBack} sx={{ bgcolor: 'action.hover' }}>
-             {theme.direction === 'rtl' ? <ChevronRight /> : <ChevronRight style={{ transform: 'rotate(180deg)' }} />}
-          </IconButton>
-          <Box>
-            <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FileDown size={24} color={theme.palette.primary.main} />
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between bg-white dark:bg-zinc-800 shadow-sm z-10">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={onBack} 
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-500 dark:text-gray-400 transition-colors"
+          >
+             <ArrowLeft className="rtl:rotate-180" size={24} />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FileDown className="text-primary-600 dark:text-primary-400" size={24} />
               Export Configurator
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Review data, select columns, and download Odoo v18 compatible CSV files.
-            </Typography>
-          </Box>
-        </Box>
-        <Button 
+            </p>
+          </div>
+        </div>
+        <button 
           onClick={handleDownloadAll}
-          variant="contained"
-          size="large"
-          startIcon={<Download size={18} />}
-          sx={{ fontWeight: 'bold', borderRadius: 2 }}
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-lg shadow-primary-600/20 transition-all"
         >
+          <Download size={18} />
           Download Selected
-        </Button>
-      </Paper>
+        </button>
+      </div>
 
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar: File Selection */}
-        <Paper 
-            elevation={0}
-            sx={{ 
-                width: 320, 
-                borderRight: 1, borderColor: 'divider', 
-                display: 'flex', flexDirection: 'column', 
-                zIndex: 5, borderRadius: 0
-            }}
-        >
-          <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: 1, borderColor: 'divider' }}>
-             <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+        <div className="w-80 border-e border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 flex flex-col">
+          <div className="p-4 border-b border-gray-200 dark:border-zinc-700">
+             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                  Available Files
-             </Typography>
-             <Typography variant="caption" display="block" color="text.disabled" sx={{ mt: 0.5, fontSize: 10 }}>
+             </span>
+             <p className="text-[10px] text-gray-400 mt-1">
                  Select files to download. Click on a row to preview/edit columns.
-             </Typography>
-          </Box>
-          <List sx={{ p: 1 }}>
+             </p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {FILE_DEFINITIONS.map((def) => (
-              <ListItem 
+              <div 
                 key={def.key} 
-                disablePadding 
-                sx={{ mb: 1 }}
+                onClick={() => setActiveFile(def.key)}
+                className={`
+                    group flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all border
+                    ${activeFile === def.key 
+                        ? 'bg-white dark:bg-zinc-700 border-primary-500 shadow-sm ring-1 ring-primary-500' 
+                        : 'border-transparent hover:bg-gray-100 dark:hover:bg-zinc-700/50'
+                    }
+                `}
               >
-                 <ListItemButton 
-                    selected={activeFile === def.key}
-                    onClick={() => setActiveFile(def.key)}
-                    sx={{ 
-                        borderRadius: 2, 
-                        border: 1, 
-                        borderColor: activeFile === def.key ? 'primary.main' : 'transparent',
-                        bgcolor: activeFile === def.key ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-                        '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
-                        '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) }
-                    }}
-                 >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                        <Checkbox 
-                            edge="start"
-                            checked={selectedFiles[def.key]}
-                            onChange={() => toggleFileSelection(def.key)}
-                            onClick={(e) => e.stopPropagation()}
-                            size="small"
-                        />
-                    </ListItemIcon>
-                    <ListItemText 
-                        primary={def.label} 
-                        secondary={def.description} 
-                        primaryTypographyProps={{ fontWeight: 600, fontSize: 14, color: activeFile === def.key ? 'primary.main' : 'text.primary' }}
-                        secondaryTypographyProps={{ fontSize: 11 }}
+                 <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <input 
+                        type="checkbox"
+                        checked={selectedFiles[def.key]}
+                        onChange={() => toggleFileSelection(def.key)}
+                        className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:bg-zinc-700 dark:border-zinc-600 cursor-pointer"
                     />
-                    {activeFile === def.key && <Eye size={16} color={theme.palette.primary.main} style={{ opacity: 0.7 }} />}
-                 </ListItemButton>
-              </ListItem>
+                 </div>
+                 <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                        <span className={`text-sm font-bold ${activeFile === def.key ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                            {def.label}
+                        </span>
+                        {activeFile === def.key && <Eye size={14} className="text-primary-500" />}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                        {def.description}
+                    </p>
+                 </div>
+              </div>
             ))}
-          </List>
-        </Paper>
+          </div>
+        </div>
 
         {/* Main Area: Preview & Columns */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-900">
            {/* Toolbar */}
-           <Box sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                 <Chip 
-                    icon={<FileText size={14} />} 
-                    label={FILE_DEFINITIONS.find(f => f.key === activeFile)?.label} 
-                    size="small" 
-                    variant="outlined"
-                    sx={{ fontWeight: 'bold' }}
-                 />
-                 <Chip label={`${currentData.length} Records`} size="small" sx={{ bgcolor: 'action.selected' }} />
-              </Box>
-              <Button 
+           <div className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-700 rounded-lg border border-gray-200 dark:border-zinc-600">
+                    <FileText size={14} className="text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                        {FILE_DEFINITIONS.find(f => f.key === activeFile)?.label}
+                    </span>
+                 </div>
+                 <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800 px-2 py-1 rounded">
+                    {currentData.length} Records
+                 </span>
+              </div>
+              <button 
                 onClick={() => handleDownload(activeFile)} 
-                size="small" 
-                startIcon={<Download size={14} />}
-                sx={{ textTransform: 'none' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
               >
-                  Download This File (CSV)
-              </Button>
-           </Box>
+                  <Download size={14} /> Download This CSV
+              </button>
+           </div>
 
-           <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+           <div className="flex flex-1 overflow-hidden">
               {/* Preview Table */}
-              <Box sx={{ flex: 1, overflow: 'auto', bgcolor: 'background.paper' }}>
+              <div className="flex-1 overflow-auto bg-gray-50/50 dark:bg-zinc-900/50">
                   {currentData.length === 0 ? (
-                      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'text.disabled' }}>
-                          <AlertCircle size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
-                          <Typography>No data available to display</Typography>
-                      </Box>
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
+                          <AlertCircle size={48} className="mb-4 opacity-30" />
+                          <p>No data available to display</p>
+                      </div>
                   ) : (
-                    <TableContainer>
-                        <Table stickyHeader size="small">
-                            <TableHead>
-                                <TableRow>
+                    <div className="inline-block min-w-full align-middle">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
+                            <thead className="bg-gray-50 dark:bg-zinc-800 sticky top-0 z-10">
+                                <tr>
                                     {Object.keys(currentData[0]).map(header => (
-                                        <TableCell 
+                                        <th 
                                             key={header} 
-                                            sx={{ 
-                                                fontWeight: 'bold', 
-                                                whiteSpace: 'nowrap', 
-                                                bgcolor: 'background.default',
-                                                borderBottom: 2,
-                                                borderColor: 'divider' 
-                                            }}
+                                            className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700"
                                         >
                                             {header}
-                                        </TableCell>
+                                        </th>
                                     ))}
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-100 dark:divide-zinc-800">
                                 {currentData.slice(0, 50).map((row: any, idx: number) => (
-                                    <TableRow key={idx} hover>
+                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                                         {Object.values(row).map((val: any, vIdx) => (
-                                            <TableCell 
+                                            <td 
                                                 key={vIdx} 
-                                                sx={{ 
-                                                    whiteSpace: 'nowrap', 
-                                                    maxWidth: 200, 
-                                                    overflow: 'hidden', 
-                                                    textOverflow: 'ellipsis',
-                                                    fontFamily: 'monospace',
-                                                    fontSize: 12
-                                                }}
+                                                className="px-4 py-2 text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
+                                                title={String(val)}
                                             >
                                                 {String(val)}
-                                            </TableCell>
+                                            </td>
                                         ))}
-                                    </TableRow>
+                                    </tr>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                            </tbody>
+                        </table>
+                        {currentData.length > 50 && (
+                            <div className="p-4 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800/50 border-t border-gray-200 dark:border-zinc-700">
+                                Showing first 50 records only. Full export will contain all data.
+                            </div>
+                        )}
+                    </div>
                   )}
-                  {currentData.length > 50 && (
-                      <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'action.hover', borderTop: 1, borderColor: 'divider' }}>
-                          <Typography variant="caption" color="text.secondary">
-                              Showing first 50 records only. Full file will contain all data.
-                          </Typography>
-                      </Box>
-                  )}
-              </Box>
+              </div>
 
               {/* Column Selector Panel */}
-              <Paper 
-                elevation={0}
-                sx={{ 
-                    width: 260, 
-                    borderLeft: 1, borderColor: 'divider', 
-                    display: 'flex', flexDirection: 'column',
-                    borderRadius: 0,
-                    bgcolor: 'background.default'
-                }}
-              >
-                  <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Columns size={16} />
-                      <Typography variant="subtitle2" fontWeight="bold">Column Visibility</Typography>
-                  </Box>
-                  <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
+              <div className="w-64 border-s border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex flex-col">
+                  <div className="p-3 border-b border-gray-200 dark:border-zinc-700 flex items-center gap-2 bg-gray-50 dark:bg-zinc-800">
+                      <Columns size={16} className="text-gray-500" />
+                      <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Columns</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
                       {allColumns.map(col => (
-                          <FormControlLabel
+                          <label 
                             key={col}
-                            control={
-                                <Checkbox 
-                                    checked={columnConfig[activeFile]?.[col] !== false}
-                                    onChange={() => toggleColumn(activeFile, col)}
-                                    disabled={col === 'id'}
-                                    size="small"
-                                />
-                            }
-                            label={
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                        fontWeight: col === 'id' ? 'bold' : 'normal',
-                                        fontSize: 13,
-                                        opacity: columnConfig[activeFile]?.[col] === false ? 0.6 : 1
-                                    }}
-                                    noWrap
-                                    title={col}
-                                >
-                                    {col}
-                                </Typography>
-                            }
-                            sx={{ width: '100%', ml: 0.5, mr: 0, '&:hover': { bgcolor: 'action.hover', borderRadius: 1 } }}
-                          />
+                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors ${col === 'id' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <input 
+                                type="checkbox"
+                                checked={columnConfig[activeFile]?.[col] !== false}
+                                onChange={() => toggleColumn(activeFile, col)}
+                                disabled={col === 'id'}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-zinc-600 dark:bg-zinc-700"
+                            />
+                            <span className={`text-xs truncate ${col === 'id' ? 'font-bold' : 'font-medium'} text-gray-700 dark:text-gray-300`} title={col}>
+                                {col}
+                            </span>
+                          </label>
                       ))}
-                  </Box>
-                  <Box sx={{ p: 1.5, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-                      <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+                  </div>
+                  <div className="p-2 border-t border-gray-200 dark:border-zinc-700 text-center">
+                      <span className="text-[10px] text-gray-400">
                           {allColumns.filter(c => columnConfig[activeFile]?.[c] !== false).length} columns active
-                      </Typography>
-                  </Box>
-              </Paper>
-           </Box>
-        </Box>
-      </Box>
-    </Box>
+                      </span>
+                  </div>
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
   );
 };

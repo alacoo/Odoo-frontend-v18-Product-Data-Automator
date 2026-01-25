@@ -6,7 +6,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Odoo Data Automator</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Cairo', 'Inter', 'sans-serif'],
+            },
+            colors: {
+              primary: {
+                DEFAULT: '#017E84', // Odoo Teal
+                50: '#E6F2F3',
+                100: '#C0DEE0',
+                200: '#95C8CB',
+                300: '#6AB2B5',
+                400: '#48A2A6',
+                500: '#017E84',
+                600: '#016D72',
+                700: '#015559',
+                800: '#014245',
+                900: '#002E31',
+              },
+              secondary: {
+                DEFAULT: '#714B67', // Odoo Purple
+                50: '#F2EDF1',
+                100: '#DED3DC',
+                200: '#C7B5C4',
+                300: '#AF97AB',
+                400: '#9D8098',
+                500: '#714B67',
+                600: '#63415A',
+                700: '#5A3C52',
+                800: '#4D3346',
+                900: '#3D2837',
+              }
+            }
+          }
+        }
+      }
+    </script>
     
     <script type="importmap">
 {
@@ -18,11 +59,8 @@
     "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5",
     "papaparse": "https://aistudiocdn.com/papaparse@^5.5.3",
     "lucide-react": "https://esm.sh/lucide-react@0.292.0",
-    "@mui/material": "https://esm.sh/@mui/material@5.14.18?external=react,react-dom",
-    "@mui/material/": "https://esm.sh/@mui/material@5.14.18/",
-    "@emotion/react": "https://esm.sh/@emotion/react@11.11.1?external=react",
-    "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0?external=react,@emotion/react",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
   }
 }
 </script>

@@ -1,4 +1,5 @@
 
+
 import { ParsedProduct, OdooCurrency, OdooAttribute, OdooAttributeValue, OdooPricelist, SystemHealthReport, PreCheckResult, SyncIssue } from "../types";
 import { getSettings } from './settingsService';
 
@@ -195,7 +196,7 @@ export const authenticateOdoo = async (): Promise<{ apiKey: string; uid: number 
 
 /**
  * Executes a specific method on an Odoo model.
- * Used for custom endpoints like system health checks.
+ * Used for custom endpoints.
  */
 export const callOdooMethod = async (model: string, method: string, args: any[] = [], kwargs: any = {}): Promise<any> => {
     const payload = {
@@ -213,20 +214,34 @@ export const callOdooMethod = async (model: string, method: string, args: any[] 
 
 /**
  * Checks the system health and permissions configuration.
+ * Uses strict parameters: PUT method and ids: [1].
  */
 export const checkSystemHealth = async (): Promise<SystemHealthReport> => {
     try {
-        const report = await callOdooMethod('res.company', 'api_check_system_health');
+        const payload = {
+            model: 'res.company',
+            method: 'api_check_system_health',
+            ids: [1], // Updated to use ID 1 as per new spec
+            args: [],
+            kwargs: {}
+        };
+        
+        // Updated to use PUT method as per new spec
+        const report = await apiFetch('/call_method', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
+
         // If the report comes back as a string (sometimes happens with legacy API wrappers), try to parse
         if (typeof report === 'string') {
              try { return JSON.parse(report); } catch(e) { return { status: 'error', error: 'Invalid JSON response' }; }
         }
         return report;
     } catch (e: any) {
-        console.warn("System Health Check failed (Method likely missing):", e);
+        console.warn("System Health Check failed:", e);
         return { 
             status: 'warning', 
-            error: `Health check method missing: ${e.message}. Assuming standard configuration.`
+            error: `Health check failed: ${e.message}. Assuming standard configuration.`
         };
     }
 };
@@ -409,10 +424,10 @@ export const fetchOdooProducts = async (): Promise<ParsedProduct[]> => {
     domain: ['|', ["sale_ok", "=", true], ["purchase_ok", "=", true]],
     fields: [
       "id", "name", "display_name", "default_code", "lst_price", "standard_price",
-      "qty_available", "uom_id", "tracking", "categ_id", "currency_id", 
+      "qty_available", "virtual_available", "uom_id", "tracking", "categ_id", "currency_id", 
       "barcode", "weight", "sale_ok", "purchase_ok", "type", // Requesting 'type' explicitly
       "allow_variable_dimensions", "price_per_sqm", "variant_price_per_sqm", "product_template_attribute_value_ids",
-      "image_128" // Requesting thumbnail image
+      "image_128", "is_favorite" // Added is_favorite
     ],
     limit: 300,
     order: "id desc"
@@ -778,6 +793,9 @@ const transformLocalToOdoo = (p: Partial<ParsedProduct>): any => {
     if (p.allow_variable_dimensions !== undefined) payload.allow_variable_dimensions = p.allow_variable_dimensions;
     if (p.price_per_sqm !== undefined) payload.price_per_sqm = p.price_per_sqm;
     if (p.variant_price_per_sqm !== undefined) payload.variant_price_per_sqm = p.variant_price_per_sqm;
+    
+    // Favorite mapping (Priority in Odoo might differ, but assuming direct field mapping requested)
+    if (p.is_favorite !== undefined) payload.is_favorite = p.is_favorite;
 
     return payload;
 };
@@ -821,6 +839,13 @@ const transformOdooToLocal = (odooData: any[]): ParsedProduct[] => {
       sale_ok: item.sale_ok,
       purchase_ok: item.purchase_ok,
       attributes: attributes,
+      
+      // Stock & Cat
+      qty_available: item.qty_available || 0,
+      virtual_available: item.virtual_available || 0,
+      categ_name: item.categ_id ? item.categ_id[1] : 'All',
+      is_favorite: item.is_favorite || false,
+      
       image: item.image_128, // Map thumbnail to local image prop
       allow_variable_dimensions: item.allow_variable_dimensions || false,
       price_per_sqm: item.price_per_sqm || 0,

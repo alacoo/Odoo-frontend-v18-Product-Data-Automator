@@ -1,4 +1,5 @@
 
+
 import { ParsedProduct, OdooExportData, GlobalAttributeConfig } from '../types';
 
 const sanitizeId = (prefix: string, str: string): string => {
@@ -26,6 +27,7 @@ export const generateOdooData = (products: ParsedProduct[], attributeConfigs: Ma
     saleOk: boolean;
     purchaseOk: boolean;
     weight: number;
+    category: string; // Added category tracking
     attributes: Map<string, Set<string>>;
     variants: ParsedProduct[];
   }>();
@@ -82,6 +84,7 @@ export const generateOdooData = (products: ParsedProduct[], attributeConfigs: Ma
             saleOk: p.sale_ok ?? true,
             purchaseOk: p.purchase_ok ?? true,
             weight: p.weight || 0,
+            category: p.categ_name || 'All',
             attributes: new Map(),
             variants: []
         });
@@ -149,7 +152,8 @@ export const generateOdooData = (products: ParsedProduct[], attributeConfigs: Ma
           // Extra handy fields for V18
           sale_ok: tmpl.saleOk ? 'True' : 'False',
           purchase_ok: tmpl.purchaseOk ? 'True' : 'False',
-          type: dType // Legacy support
+          type: dType, // Legacy support
+          categ_id: tmpl.category // Added Category Export
       };
 
       if (tmpl.attributes.size === 0) {

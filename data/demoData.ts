@@ -1,4 +1,5 @@
 
+
 import { ParsedProduct, OdooTracking } from '../types';
 
 // Default Rates
@@ -24,7 +25,7 @@ const determineTracking = (code: string, type: string): OdooTracking => {
     if (type === 'service' || type === 'consu') return 'none';
     if (code.startsWith('MACH-')) return 'serial';
     if (code.startsWith('MAT-BNR') || code.startsWith('MAT-FLX') || code.startsWith('VINYL')) return 'lot';
-    if (code.startsWith('FALX') || code.startsWith('BANR')) return 'lot'; // Added logic for new items
+    if (code.startsWith('FALX') || code.startsWith('BANR')) return 'lot';
     return 'none';
 };
 
@@ -42,6 +43,49 @@ const extractWidth = (attributes: {name: string, value: string}[]): number | nul
     }
     return null;
 };
+
+// --- DATA PROCESSING HELPERS ---
+
+// Helper to infer Forex Thickness based on price
+const inferForexThickness = (price: number): string | null => {
+    if (price >= 5000 && price <= 6000) return "3mm";
+    if (price >= 7000 && price <= 8000) return "4mm";
+    if (price >= 9000 && price <= 10000) return "6mm";
+    if (price >= 12000 && price <= 13000) return "8mm";
+    // 13780 seems like a variant of 9mm or cheap 10mm, let's map to 9mm to differentiate
+    if (price >= 13500 && price <= 14500) return "9mm";
+    if (price >= 15000 && price <= 16500) return "10mm";
+    if (price >= 18000 && price <= 20000) return "12mm";
+    if (price >= 22000 && price <= 24000) return "15mm";
+    if (price >= 30000) return "20mm";
+    return null;
+};
+
+// Helper to standardize Vinyl names
+const standardizeVinylName = (name: string, originalAttrs: string): { newName: string, extraAttr: string | null } => {
+    const keywords = ["استيكر", "لاصق طباعة", "لاصق روكو", "لاصق سلفنة", "لاصق وجهين"];
+    const foundKeyword = keywords.find(k => name.includes(k));
+    
+    if (foundKeyword) {
+        // Clean up the keyword from the name to create a specific attribute value
+        // e.g., "استيكر ملون" -> "ملون"
+        let specificType = name.replace(foundKeyword, '').trim();
+        // Remove common dimensions or junk chars
+        specificType = specificType.replace(/[\d\.]+\s*(m|م|سم)/gi, '').trim();
+        specificType = specificType.replace(/عالي الجوده|مقاس|رولة|طابعه/gi, '').trim();
+        
+        // Create a descriptive attribute for the variant to distinguish it
+        // If specificType is empty, fallback to the keyword itself (e.g. "Roco", "Sticker")
+        const variantValue = specificType.length > 2 ? specificType : foundKeyword;
+        
+        return {
+            newName: "رولة طباعة لاصق (Vinyl Roll)",
+            extraAttr: `Type:${variantValue}`
+        };
+    }
+    return { newName: name, extraAttr: null };
+};
+
 
 export const getDemoData = (): ParsedProduct[] => {
     const rawData = [
@@ -265,10 +309,6 @@ export const getDemoData = (): ParsedProduct[] => {
         { code: "PART-PSU-STD-150W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 3180, uom: "Piece", type: "product", attrs: "النوع:Standard, القدرة:150W, التيار:12.5A" },
         { code: "PART-PSU-RAIN-100W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 3180, uom: "Piece", type: "product", attrs: "النوع:Rainproof, القدرة:100W, التيار:8.33A" },
         { code: "PART-PSU-STD-60W", name: "قطع غيار - مزود طاقة (Power Supply)", price: 2120, uom: "Piece", type: "product", attrs: "النوع:Standard, القدرة:60W, التيار:5.0A" },
-        
-        // --- NEW ITEMS FROM INVOICE ---
-        // Converted USD Prices to YER (Price * 530)
-        
         { code: "FALX.1.1.1.16886", name: "فلكس تورجيت (Flex Tourjet)", price: 127200, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:3.20m, الطول:50m" },
         { code: "FALX.1.1.1.16884", name: "فلكس تورجيت (Flex Tourjet)", price: 87450, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:2.20m, الطول:50m" },
         { code: "FALX.1.1.1.16883", name: "فلكس تورجيت (Flex Tourjet)", price: 63600, uom: "Roll", type: "product", attrs: "الوزن:610g, عرض الرولة:1.60m, الطول:50m" },
@@ -286,12 +326,241 @@ export const getDemoData = (): ParsedProduct[] => {
         { code: "Inc.2.2.16121", name: "حبر ايكو سولفنت (Eco Solvent Ink)", price: 7950, uom: "Liter", type: "product", attrs: "الماركة:Eco Plus Art Jet, اللون:Yellow" },
         { code: "BANR.1.1.2.1.16364", name: "بنر طباعة لماع (Glossy Banner)", price: 55120, uom: "Roll", type: "product", attrs: "الوزن:340g, عرض الرولة:3.20m, الطول:50m, النوع:Glossy" },
         { code: "BANR.1.1.1.2.16457", name: "بنر طباعة لماع (Glossy Banner)", price: 48336, uom: "Roll", type: "product", attrs: "الوزن:280g, عرض الرولة:3.20m, الطول:50m, النوع:Glossy" },
-        { code: "VINYL.1.3.2.3.17665", name: "لاصق روكو سترو مخرم (Vinyl Roco Perforated)", price: 56392, uom: "Roll", type: "product", attrs: "عرض الرولة:1.52m, الطول:50m, النوع:Perforated" }
+        { code: "VINYL.1.3.2.3.17665", name: "لاصق روكو سترو مخرم (Vinyl Roco Perforated)", price: 56392, uom: "Roll", type: "product", attrs: "عرض الرولة:1.52m, الطول:50m, النوع:Perforated" },
+        
+        // --- Added from imported CSV ---
+        { code: "1768715677-1", name: "اعواد تنظيف رؤوس الطابعات ابيض كبير", price: 0, uom: "Piece", type: "product", attrs: "النوع:أعواد تنظيف, اللون:White, الحجم:Large" },
+        { code: "1768715688-2", name: "ورنيش يوفي G6-UV", price: 0, uom: "Liter", type: "product", attrs: "النوع:Varnish, الموديل:G6-UV" },
+        { code: "1768715695-3", name: "ورنيش يوفي Epson هارد UV", price: 0, uom: "Can", type: "product", attrs: "النوع:Varnish, الموديل:Epson Hard, الحجم:0.5L" },
+        { code: "1768715702-4", name: "ورنيش يوفي 1600-3200 UV هارد", price: 0, uom: "Can", type: "product", attrs: "النوع:Varnish, الموديل:Hard, الحجم:0.50L" },
+        { code: "1768715709-5", name: "بروميشن استاند عرض فيبر ابيض مقاس 85×183 سم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Promotion Stand, اللون:White, المقاس:85x183cm, المادة:Fiber" },
+        { code: "1768715719-6", name: "استاند اكس 160 ×60 سم انيق ذات جودة", price: 0, uom: "Piece", type: "product", attrs: "النوع:X-Stand, المقاس:160x60cm" },
+        { code: "1768715726-7", name: "بروميشن استاند عرض فيبر رمادي مقاس 90×180 سم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Promotion Stand, اللون:Grey, المقاس:90x180cm, المادة:Fiber" },
+        { code: "1768715734-8", name: "ورق كليشات بلوتر 80 جرام مقاس 1.20 م", price: 0, uom: "Roll", type: "product", attrs: "الوزن:80g, العرض:1.20m, الطول:200m" },
+        { code: "1768715742-9", name: "ورق كليشات بلوتر 220 جرام مقاس 1.20 م", price: 0, uom: "Roll", type: "product", attrs: "الوزن:220g, العرض:1.20m, الطول:100m" },
+        { code: "1768715763-15", name: "ورق طباعة مائي فيلم مقلوب", price: 22960, uom: "Roll", type: "product", attrs: "النوع:Water Transfer Film" },
+        { code: "1768715763-16", name: "ورق طباعة مائي فيلم مقلوب", price: 38266, uom: "Roll", type: "product", attrs: "النوع:Water Transfer Film" },
+        { code: "1768715778-17", name: "ورق طباعة استاند ضد الماء", price: 25520, uom: "Roll", type: "product", attrs: "النوع:Stand Paper Waterproof, الطول:50m" },
+        { code: "1768715778-19", name: "ورق طباعة استاند ضد الماء", price: 30290, uom: "Roll", type: "product", attrs: "النوع:Stand Paper Waterproof, الطول:50m" },
+        { code: "1768715778-20", name: "ورق طباعة استاند ضد الماء", price: 36252, uom: "Roll", type: "product", attrs: "النوع:Stand Paper Waterproof, الطول:50m" },
+        { code: "1768715786-21", name: "ورق برونز فويل ذهبي فلات نقل يوفي UV مقاس 0.32 م", price: 0, uom: "Roll", type: "product", attrs: "اللون:Gold, النوع:Bronze Foil, العرض:0.32m, الطول:120m" },
+        { code: "1768715793-22", name: "ورق فيلم A فلات نقل يوفي شفاف A3", price: 0, uom: "Piece", type: "product", attrs: "المقاس:A3, النوع:Film A Transparent" },
+        { code: "1768715807-23", name: "ورق ترانسفير DTF A3 فنايل – جاهز للطباعة", price: 0, uom: "Piece", type: "product", attrs: "المقاس:A3, النوع:DTF Transfer" },
+        { code: "1768715815-24", name: "معالق لوحات عرض LED لايت بوكس مقاس 90×60", price: 0, uom: "Piece", type: "product", attrs: "المقاس:90x60cm, النوع:Hangers" },
+        { code: "1768715823-25", name: "مشرط تقطيع بلاستيك", price: 0, uom: "Piece", type: "product", attrs: "النوع:Plastic Cutter" },
+        { code: "1768715831-26", name: "مشرط بنر", price: 0, uom: "Piece", type: "product", attrs: "النوع:Banner Cutter" },
+        { code: "1768715838-27", name: "محول كهرباء Rainproof ضد الماء 12 فولت", price: 2120, uom: "Piece", type: "product", attrs: "النوع:Power Supply Rainproof, الجهد:12V, التيار:58.3A" },
+        { code: "1768715846-28", name: "محول كهرباء 12 فولت", price: 2120, uom: "Piece", type: "product", attrs: "النوع:Power Supply, الجهد:12V, التيار:20.83A" },
+        { code: "1768715853-29", name: "ماكينة لف حروف S150", price: 0, uom: "Piece", type: "product", attrs: "الموديل:S150, النوع:Letter Bender" },
+        { code: "1768715860-30", name: "ماكينة لحام حروف استيل 300 وات", price: 0, uom: "Piece", type: "product", attrs: "القدرة:300W, النوع:Steel Welder" },
+        { code: "1768715890-31", name: "لوح فوركس ابيض 122×244 سم", price: 5300, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-32", name: "لوح فوركس ابيض 122×244 سم", price: 15370, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-33", name: "لوح فوركس ابيض 122×244 سم", price: 18550, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-34", name: "لوح فوركس ابيض 122×244 سم", price: 22790, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-35", name: "لوح فوركس ابيض 122×244 سم", price: 31800, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-37", name: "لوح فوركس ابيض 122×244 سم", price: 7155, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-38", name: "لوح فوركس ابيض 122×244 سم", price: 9275, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-39", name: "لوح فوركس ابيض 122×244 سم", price: 12190, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715890-40", name: "لوح فوركس ابيض 122×244 سم", price: 13780, uom: "Sheet", type: "product", attrs: "اللون:White, المقاس:122x244cm" },
+        { code: "1768715903-41", name: "لمبات حروف كبسولة", price: 0, uom: "Packet", type: "product", attrs: "النوع:Capsule LED, الكمية:50pcs" },
+        { code: "1768715910-43", name: "لاصق طباعة روكو شفاف مقاس 1.27م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Roco Clear, العرض:1.27m, الطول:50m" },
+        { code: "1768715927-44", name: "لاصق طباعه روكو ابيض", price: 35113, uom: "Roll", type: "product", attrs: "اللون:White, الطول:50m" },
+        { code: "1768715927-46", name: "لاصق طباعه روكو ابيض", price: 42071, uom: "Roll", type: "product", attrs: "اللون:White, الطول:50m" },
+        { code: "1768715927-47", name: "لاصق طباعه روكو ابيض", price: 50350, uom: "Roll", type: "product", attrs: "اللون:White, الطول:50m" },
+        { code: "1768715927-48", name: "لاصق طباعه روكو ابيض", price: 69589, uom: "Roll", type: "product", attrs: "اللون:White, الطول:50m" },
+        { code: "1768715937-49", name: "لاصق طباعة عاكس يتكسر Brkـ 1.24 م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Reflective Brk, العرض:1.24m, الطول:45.7m" },
+        { code: "1768715950-50", name: "لاصق طباعة شفاف Respect", price: 0, uom: "Roll", type: "product", attrs: "النوع:Transparent Respect, الطول:50m" },
+        { code: "1768715950-51", name: "لاصق طباعة شفاف Respect", price: 67310, uom: "Roll", type: "product", attrs: "النوع:Transparent Respect, الطول:50m" },
+        { code: "1768715950-52", name: "لاصق طباعة شفاف Respect", price: 80560, uom: "Roll", type: "product", attrs: "النوع:Transparent Respect, الطول:50m" },
+        { code: "1768715958-53", name: "لاصق سلفنة ارضيات مقاس 1.52 م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Floor Lamination, العرض:1.52m, الطول:50m" },
+        { code: "1768715965-54", name: "كلورفورم غراء اكريلك", price: 0, uom: "Can", type: "product", attrs: "النوع:Chloroform Glue, الحجم:500ml" },
+        { code: "1768715980-55", name: "قماش طباعة مائي ابيض 110 جرام", price: 14469, uom: "Roll", type: "product", attrs: "الوزن:110g, الطول:50m, النوع:Waterbased Fabric" },
+        { code: "1768715980-57", name: "قماش طباعة مائي ابيض 110 جرام", price: 17278, uom: "Roll", type: "product", attrs: "الوزن:110g, الطول:50m, النوع:Waterbased Fabric" },
+        { code: "1768715980-58", name: "قماش طباعة مائي ابيض 110 جرام", price: 21348, uom: "Roll", type: "product", attrs: "الوزن:110g, الطول:50m, النوع:Waterbased Fabric" },
+        { code: "1768716002-59", name: "قماش طباعة حراري فبرك لماع", price: 15450, uom: "Roll", type: "product", attrs: "النوع:Fabric Glossy, الطول:100m" },
+        { code: "1768716002-61", name: "قماش طباعة حراري فبرك لماع", price: 18513, uom: "Roll", type: "product", attrs: "النوع:Fabric Glossy, الطول:100m" },
+        { code: "1768716002-62", name: "قماش طباعة حراري فبرك لماع", price: 22154, uom: "Roll", type: "product", attrs: "النوع:Fabric Glossy, الطول:100m" },
+        { code: "1768716002-63", name: "قماش طباعة حراري فبرك لماع", price: 44308, uom: "Roll", type: "product", attrs: "النوع:Fabric Glossy, الطول:100m" },
+        { code: "1768716020-65", name: "بنر طباعه مطفي 350 جرام", price: 20988, uom: "Roll", type: "product", attrs: "الوزن:350g, الطول:50m, النوع:Matte" },
+        { code: "1768716020-67", name: "بنر طباعه مطفي 350 جرام", price: 30528, uom: "Roll", type: "product", attrs: "الوزن:350g, الطول:50m, النوع:Matte" },
+        { code: "1768716020-68", name: "بنر طباعه مطفي 350 جرام", price: 41976, uom: "Roll", type: "product", attrs: "الوزن:350g, الطول:50m, النوع:Matte" },
+        { code: "1768716020-69", name: "بنر طباعه مطفي 350 جرام", price: 61056, uom: "Roll", type: "product", attrs: "الوزن:350g, الطول:50m, النوع:Matte" },
+        { code: "1768716032-70", name: "قماش طباعة حراري فبرك مطفي مقاس3.20م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Fabric Matte, العرض:3.20m, الطول:50m" },
+        { code: "1768716048-71", name: "قماش طباعة حراري فبرك مطفي", price: 30899, uom: "Roll", type: "product", attrs: "النوع:Fabric Matte, الطول:100m" },
+        { code: "1768716048-73", name: "قماش طباعة حراري فبرك مطفي", price: 37021, uom: "Roll", type: "product", attrs: "النوع:Fabric Matte, الطول:100m" },
+        { code: "1768716048-74", name: "قماش طباعة حراري فبرك مطفي", price: 44308, uom: "Roll", type: "product", attrs: "النوع:Fabric Matte, الطول:100m" },
+        { code: "1768716055-75", name: "فلاش تنظيف Epson UV – هارد", price: 0, uom: "Can", type: "product", attrs: "النوع:Flush Epson UV, الحجم:500ml" },
+        { code: "1768716063-76", name: "فلاش تنظيف فلورا", price: 0, uom: "Can", type: "product", attrs: "النوع:Flush Flora, الحجم:5L" },
+        { code: "1768716071-77", name: "فلاش تنظيف ايكوسولفنت /ارت جت", price: 0, uom: "Liter", type: "product", attrs: "النوع:Flush EcoSolvent ArtJet" },
+        { code: "1768716082-78", name: "فلاش تنظيف ابسون اخضر", price: 0, uom: "Can", type: "product", attrs: "النوع:Flush Epson Green" },
+        { code: "1768716100-79", name: "حبر مائي سكاي كلر 5113 – EPS3200", price: 0, uom: "Liter", type: "product", attrs: "النوع:Waterbased Ink SkyColor" },
+        { code: "1768716108-81", name: "فلاش تنظيف ارت جت C/S", price: 0, uom: "Can", type: "product", attrs: "النوع:Flush ArtJet C/S, الحجم:5L" },
+        { code: "1768716118-82", name: "فاين مسح روؤس 9 انش", price: 0, uom: "Bag", type: "product", attrs: "النوع:Head Wipes, المقاس:9 inch" },
+        { code: "1768716125-83", name: "غراء يوفي 100 جرام", price: 0, uom: "Can", type: "product", attrs: "النوع:UV Glue, الوزن:100g" },
+        { code: "1768716134-84", name: "غراء فوركس", price: 0, uom: "Can", type: "product", attrs: "النوع:Forex Glue, الحجم:100ml" },
+        { code: "1768716144-85", name: "غراء حروف سليكون", price: 0, uom: "Can", type: "product", attrs: "النوع:Silicon Letter Glue, الحجم:300ml" },
+        { code: "1768716153-86", name: "غراء حروف", price: 0, uom: "Can", type: "product", attrs: "النوع:Letter Glue, الوزن:1kg" },
+        { code: "1768716160-87", name: "غراء ابرو سوبر", price: 0, uom: "Can", type: "product", attrs: "النوع:Abro Super Glue, الوزن:50g" },
+        { code: "1768716172-88", name: "بودره DTF سوداء", price: 0, uom: "kg", type: "product", attrs: "النوع:DTF Powder, اللون:Black" },
+        { code: "1768716179-89", name: "بودره DTF ابيض", price: 0, uom: "kg", type: "product", attrs: "النوع:DTF Powder, اللون:White" },
+        { code: "1768716187-90", name: "علاقي وسائل اسود", price: 0, uom: "Piece", type: "product", attrs: "النوع:Hanger Black, الطول:2.4m" },
+        { code: "1768716197-91", name: "عصا مشرط بنر", price: 0, uom: "Piece", type: "product", attrs: "النوع:Banner Cutter Stick" },
+        { code: "1768716205-92", name: "طابعة سكاي ارت UV-6090 يوفي اربعة رؤوس XP600", price: 0, uom: "Piece", type: "product", attrs: "الموديل:SkyArt UV-6090, الرؤوس:4x XP600" },
+        { code: "1768716212-93", name: "طابعة ارت جت XP600 مقاس 1.8م راس واحد", price: 0, uom: "Piece", type: "product", attrs: "الموديل:ArtJet XP600, العرض:1.8m, الرؤوس:1" },
+        { code: "1768716219-94", name: "طابعة سكاي كلر شبكة E3200- SC6160S ـ ايكو سلفنت 1.6م", price: 0, uom: "Piece", type: "product", attrs: "الموديل:SkyColor SC6160S, العرض:1.6m" },
+        { code: "1768716227-95", name: "سخان طعج 1250 مم مع الزاوية", price: 0, uom: "Piece", type: "product", attrs: "النوع:Bending Heater, المقاس:1250mm" },
+        { code: "1768716234-96", name: "طابعة بنر بلوبرنت K512i نظام 8 رؤوس", price: 0, uom: "Piece", type: "product", attrs: "الموديل:Blueprint K512i, الرؤوس:8" },
+        { code: "1768716242-97", name: "طابعة سكاي ارت UV-3060 يوفي راسين XP600", price: 0, uom: "Piece", type: "product", attrs: "الموديل:SkyArt UV-3060, الرؤوس:2x XP600" },
+        { code: "1768716250-98", name: "ماكينة سلفنة حراري A3 مع قاعدة الرول", price: 0, uom: "Piece", type: "product", attrs: "النوع:Laminator A3" },
+        { code: "1768716258-99", name: "ماكينة سلفنة مقاس 1.60 م", price: 0, uom: "Piece", type: "product", attrs: "النوع:Laminator, العرض:1.60m" },
+        { code: "1768716265-100", name: "ماكينة فيبر ليزر 30 وات 3030", price: 0, uom: "Piece", type: "product", attrs: "النوع:Fiber Laser, القدرة:30W, المقاس:3030" },
+        { code: "1768716275-101", name: "ماكينه ليزر 150 وات HQ1313", price: 0, uom: "Piece", type: "product", attrs: "النوع:Laser HQ1313, القدرة:150W" },
+        { code: "1768716283-102", name: "طابعة سكاي كلر مقاس 3.20م", price: 0, uom: "Piece", type: "product", attrs: "الموديل:SkyColor, العرض:3.20m" },
+        { code: "1768716294-103", name: "طابعة DTF ورق فيلم فنايل 30 سم ارت جت I1600", price: 0, uom: "Piece", type: "product", attrs: "الموديل:DTF ArtJet I1600, العرض:30cm" },
+        { code: "1768716354-104", name: "سير S2M460/B230-ملي15 ارت جت وكاله", price: 0, uom: "Piece", type: "product", attrs: "النوع:Belt S2M460" },
+        { code: "1768716361-105", name: "سنة مشرط بنر", price: 0, uom: "Piece", type: "product", attrs: "النوع:Banner Cutter Blade" },
+        { code: "1768716368-106", name: "سنة مشرط بلاستيك عادي", price: 0, uom: "Piece", type: "product", attrs: "النوع:Plastic Cutter Blade" },
+        { code: "1768716375-107", name: "سخان طعج 600 مم مع الزاوية", price: 0, uom: "Piece", type: "product", attrs: "النوع:Bending Heater, المقاس:600mm" },
+        { code: "1768716382-108", name: "سخان طعج 600 مم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Bending Heater, المقاس:600mm" },
+        { code: "1768716389-109", name: "سخان طعج 1250 مم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Bending Heater, المقاس:1250mm" },
+        { code: "1768716397-110", name: "سخان طعج 2500 مم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Bending Heater, المقاس:2500mm" },
+        { code: "1768716404-111", name: "ماكينة روتر 1325 CNC", price: 0, uom: "Piece", type: "product", attrs: "النوع:CNC Router 1325" },
+        { code: "1768716411-112", name: "ماكينة ليزر 300 وات HQ1325", price: 0, uom: "Piece", type: "product", attrs: "النوع:Laser HQ1325, القدرة:300W" },
+        { code: "1768716418-113", name: "ريشة شد مسامير -دريل", price: 0, uom: "Piece", type: "product", attrs: "النوع:Drill Bit" },
+        { code: "1768716428-114", name: "ريشة روتر قص 4×2×6 اكرليك", price: 0, uom: "Piece", type: "product", attrs: "النوع:Router Bit Acrylic" },
+        { code: "1768716435-115", name: "ورنيش يوفي Epson هارد برونز حراري", price: 0, uom: "Can", type: "product", attrs: "النوع:Varnish Epson Bronze, الحجم:0.5L" },
+        { code: "1768716442-116", name: "دمبر DX5 ـ 2 ملي", price: 0, uom: "Piece", type: "product", attrs: "النوع:Damper DX5" },
+        { code: "1768716449-117", name: "خازن SC2K(S)- UPS 3KVA", price: 0, uom: "Piece", type: "product", attrs: "النوع:UPS 3KVA" },
+        { code: "1768716456-118", name: "حلق تخريم 10 ملي", price: 0, uom: "Bag", type: "product", attrs: "النوع:Eyelets, المقاس:10mm, الكمية:100pcs" },
+        { code: "1768716464-119", name: "حلق تخريم 10 ملي مكبس شبه اتوماتيك", price: 0, uom: "Bag", type: "product", attrs: "النوع:Eyelets Semi-Auto, المقاس:10mm, الكمية:100pcs" },
+        { code: "1768716482-120", name: "حبر يوفي G6-UV", price: 0, uom: "Liter", type: "product", attrs: "النوع:UV Ink G6" },
+        { code: "1768716501-122", name: "حبر يوفي XP600-UV", price: 4240, uom: "Piece", type: "product", attrs: "النوع:UV Ink XP600" },
+        { code: "1768716520-124", name: "حبر 1600-3200 UV يوفي هارد", price: 8480, uom: "Can", type: "product", attrs: "النوع:UV Ink Hard, الحجم:0.50L" },
+        { code: "1768716538-126", name: "حبر ايكو سولفنت ايكو بلس – ارت جت", price: 7950, uom: "Liter", type: "product", attrs: "النوع:EcoSolvent Ink EcoPlus, الماركة:ArtJet" },
+        { code: "1768716557-128", name: "حبر DTF بثبات لوني عالي علبه", price: 0, uom: "Can", type: "product", attrs: "النوع:DTF Ink, الحجم:0.50L" },
+        { code: "1768716565-130", name: "حامل ديكور اكريلك شفاف 30×19 mm", price: 0, uom: "Piece", type: "product", attrs: "النوع:Decor Holder Acrylic, المقاس:30x19mm" },
+        { code: "1768716578-131", name: "حامل ديكور اكريلك شفاف 13×19 mm", price: 0, uom: "Piece", type: "product", attrs: "النوع:Decor Holder Acrylic, المقاس:13x19mm" },
+        { code: "1768716585-132", name: "حامل ديكور استيل اكريلك فضي 30×19 mm", price: 0, uom: "Piece", type: "product", attrs: "النوع:Decor Holder Steel, المقاس:30x19mm" },
+        { code: "1768716594-133", name: "مسامير شد PATTA", price: 0, uom: "Packet", type: "product", attrs: "النوع:Screws PATTA" },
+        { code: "1768716709-134", name: "بنر طباعه مطفي عبيكان 450 جرام", price: 32940, uom: "Roll", type: "product", attrs: "الوزن:450g, النوع:Matte Abikan, الطول:50m" },
+        { code: "1768716709-136", name: "بنر طباعه مطفي عبيكان 450 جرام", price: 47912, uom: "Roll", type: "product", attrs: "الوزن:450g, النوع:Matte Abikan, الطول:50m" },
+        { code: "1768716709-137", name: "بنر طباعه مطفي عبيكان 450 جرام", price: 65879, uom: "Roll", type: "product", attrs: "الوزن:450g, النوع:Matte Abikan, الطول:50m" },
+        { code: "1768716709-138", name: "بنر طباعه مطفي عبيكان 450 جرام", price: 80852, uom: "Roll", type: "product", attrs: "الوزن:450g, النوع:Matte Abikan, الطول:50m" },
+        { code: "1768716709-139", name: "بنر طباعه مطفي عبيكان 450 جرام", price: 95824, uom: "Roll", type: "product", attrs: "الوزن:450g, النوع:Matte Abikan, الطول:50m" },
+        { code: "1768716726-140", name: "بنر طباعة مطفي 440 جرام سوبر", price: 22446, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte Super, الطول:50m" },
+        { code: "1768716726-142", name: "بنر طباعة مطفي 440 جرام سوبر", price: 32648, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte Super, الطول:50m" },
+        { code: "1768716726-143", name: "بنر طباعة مطفي 440 جرام سوبر", price: 44891, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte Super, الطول:50m" },
+        { code: "1768716726-144", name: "بنر طباعة مطفي 440 جرام سوبر", price: 65296, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte Super, الطول:50m" },
+        { code: "1768716794-145", name: "بنر طباعة لماع 340 جرام", price: 18948, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716794-147", name: "بنر طباعة لماع 340 جرام", price: 22393, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716794-148", name: "بنر طباعة لماع 340 جرام", price: 27560, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716794-149", name: "بنر طباعة لماع 340 جرام", price: 37895, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716794-150", name: "بنر طباعة لماع 340 جرام", price: 44785, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716794-151", name: "بنر طباعة لماع 340 جرام", price: 55120, uom: "Roll", type: "product", attrs: "الوزن:340g, النوع:Glossy, الطول:50m" },
+        { code: "1768716802-152", name: "بطاقات بلاستيكية PVC قابلة للطباعة", price: 0, uom: "Piece", type: "product", attrs: "النوع:PVC Cards" },
+        { code: "1768716811-153", name: "ورق فيلم A فلات نقل يوفي شفاف 0.30 م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Film A Flat, العرض:0.30m, الطول:100m" },
+        { code: "1768716818-154", name: "ورق كلك خلفيه رمادي مقاس0.92م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Calc Paper Grey, العرض:0.92m, الطول:50m" },
+        { code: "1768716933-160", name: "بنر عاكس 520 جرام", price: 69960, uom: "Roll", type: "product", attrs: "الوزن:520g, النوع:Reflective, الطول:50m" },
+        { code: "1768716933-162", name: "بنر عاكس 520 جرام", price: 101760, uom: "Roll", type: "product", attrs: "الوزن:520g, النوع:Reflective, الطول:50m" },
+        { code: "1768716933-163", name: "بنر عاكس 520 جرام", price: 139920, uom: "Roll", type: "product", attrs: "الوزن:520g, النوع:Reflective, الطول:50m" },
+        { code: "1768716933-164", name: "بنر عاكس 520 جرام", price: 142856, uom: "Roll", type: "product", attrs: "الوزن:520g, النوع:Reflective, الطول:50m" },
+        { code: "1768717250-166", name: "الواح اكريلك 122×244 سم عالي الجودة", price: 20670, uom: "Sheet", type: "product", attrs: "المقاس:122x244cm, النوع:High Quality" },
+        { code: "1768717264-178", name: "اعواد تنظيف الرؤوس ابيض صغير", price: 0, uom: "Piece", type: "product", attrs: "النوع:Head Cleaning Swabs, اللون:White, الحجم:Small" },
+        { code: "1768717276-179", name: "استيكر ملون مقاس 1.06 عالي الجوده", price: 0, uom: "Roll", type: "product", attrs: "العرض:1.06m" },
+        { code: "1768717283-181", name: "استاند سحاب المنيوم فضي 200×85سم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Rollup Aluminum Silver, المقاس:200x85cm" },
+        { code: "1768717290-182", name: "استاند سحاب عريض المنيوم فضي 200×85سم", price: 0, uom: "Piece", type: "product", attrs: "النوع:Rollup Wide Aluminum Silver, المقاس:200x85cm" },
+        { code: "1768717299-183", name: "استاند اكس 40 × 30سم اسود", price: 0, uom: "Piece", type: "product", attrs: "النوع:X-Stand Black, المقاس:40x30cm" },
+        { code: "1768717313-184", name: "حبر ارت جت Stan", price: 5565, uom: "Liter", type: "product", attrs: "الماركة:ArtJet Standard" },
+        { code: "1768717322-186", name: "استاند اكس 40 × 30سم ابيض", price: 0, uom: "Piece", type: "product", attrs: "النوع:X-Stand White, المقاس:40x30cm" },
+        { code: "1768717337-187", name: "حبر ارت جت Prem", price: 6625, uom: "Liter", type: "product", attrs: "الماركة:ArtJet Premium" },
+        { code: "1768717345-189", name: "استاند اكس 180 ×80 سم انيق ذات جودة", price: 0, uom: "Piece", type: "product", attrs: "النوع:X-Stand, المقاس:180x80cm" },
+        { code: "1768717400-190", name: "لاصق طباعه روكو سترو مخرم", price: 39326, uom: "Roll", type: "product", attrs: "النوع:Perforated Roco, الطول:50m" },
+        { code: "1768717400-192", name: "لاصق طباعه روكو سترو مخرم", price: 47117, uom: "Roll", type: "product", attrs: "النوع:Perforated Roco, الطول:50m" },
+        { code: "1768717400-193", name: "لاصق طباعه روكو سترو مخرم", price: 50827, uom: "Roll", type: "product", attrs: "النوع:Perforated Roco, الطول:50m" },
+        { code: "1768717400-194", name: "لاصق طباعه روكو سترو مخرم", price: 56392, uom: "Roll", type: "product", attrs: "النوع:Perforated Roco, الطول:50m" },
+        { code: "1768717443-195", name: "ارت فلكس 610 جرام", price: 51013, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-197", name: "ارت فلكس 610 جرام", price: 60288, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-198", name: "ارت فلكس 610 جرام", price: 64925, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-199", name: "ارت فلكس 610 جرام", price: 74200, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-200", name: "ارت فلكس 610 جرام", price: 102025, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-201", name: "ارت فلكس 610 جرام", price: 120575, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717443-202", name: "ارت فلكس 610 جرام", price: 148400, uom: "Roll", type: "product", attrs: "الوزن:610g, الماركة:ArtFlex, الطول:50m" },
+        { code: "1768717459-203", name: "لاصق طباعة ابيض Respect", price: 0, uom: "Roll", type: "product", attrs: "اللون:White, الماركة:Respect, الطول:50m" },
+        { code: "1768717459-204", name: "لاصق طباعة ابيض Respect", price: 54060, uom: "Roll", type: "product", attrs: "اللون:White, الماركة:Respect, الطول:50m" },
+        { code: "1768717459-205", name: "لاصق طباعة ابيض Respect", price: 67310, uom: "Roll", type: "product", attrs: "اللون:White, الماركة:Respect, الطول:50m" },
+        { code: "1768717459-206", name: "لاصق طباعة ابيض Respect", price: 80560, uom: "Roll", type: "product", attrs: "اللون:White, الماركة:Respect, الطول:50m" },
+        { code: "1768717479-207", name: "ورق طباعة صور ايكوسولفنت", price: 21068, uom: "Roll", type: "product", attrs: "النوع:Photo Paper EcoSolvent, الطول:50m" },
+        { code: "1768717479-209", name: "ورق طباعة صور ايكوسولفنت", price: 42533, uom: "Roll", type: "product", attrs: "النوع:Photo Paper EcoSolvent, الطول:50m" },
+        { code: "1768717479-210", name: "ورق طباعة صور ايكوسولفنت", price: 50483, uom: "Roll", type: "product", attrs: "النوع:Photo Paper EcoSolvent, الطول:50m" },
+        { code: "1768717479-211", name: "ورق طباعة صور ايكوسولفنت", price: 60420, uom: "Roll", type: "product", attrs: "النوع:Photo Paper EcoSolvent, الطول:50m" },
+        { code: "1768717525-217", name: "بنر مطفي 440 جرام", price: 23903, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717525-219", name: "بنر مطفي 440 جرام", price: 28249, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717525-220", name: "بنر مطفي 440 جرام", price: 34768, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717525-221", name: "بنر مطفي 440 جرام", price: 47806, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717525-222", name: "بنر مطفي 440 جرام", price: 58671, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717525-223", name: "بنر مطفي 440 جرام", price: 69536, uom: "Roll", type: "product", attrs: "الوزن:440g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-230", name: "بنر طباعه مطفي 280 جرام", price: 16616, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-231", name: "بنر طباعه مطفي 280 جرام", price: 15863, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-233", name: "بنر طباعه مطفي 280 جرام", price: 23415, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-234", name: "بنر طباعه مطفي 280 جرام", price: 28700, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-235", name: "بنر طباعه مطفي 280 جرام", price: 33231, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717629-236", name: "بنر طباعه مطفي 280 جرام", price: 48336, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Matte, الطول:50m" },
+        { code: "1768717680-237", name: "بنر طباعة لماع 280 جرام", price: 15863, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-239", name: "بنر طباعة لماع 280 جرام", price: 19637, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-240", name: "بنر طباعة لماع 280 جرام", price: 23415, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-241", name: "بنر طباعة لماع 280 جرام", price: 28700, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-242", name: "بنر طباعة لماع 280 جرام", price: 33231, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-243", name: "بنر طباعة لماع 280 جرام", price: 39273, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717680-244", name: "بنر طباعة لماع 280 جرام", price: 48336, uom: "Roll", type: "product", attrs: "الوزن:280g, النوع:Glossy, الطول:50m" },
+        { code: "1768717949-253", name: "ورق فيلم B سلفنه مقاس 0.32 م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Film B Lamination, العرض:0.32m" },
+        { code: "1768717949-254", name: "ورق فيلم B سلفنه مقاس 0.32 م", price: 15900, uom: "Roll", type: "product", attrs: "النوع:Film B Lamination, العرض:0.32m" },
+        { code: "1768717949-255", name: "ورق فيلم B سلفنه مقاس 0.32 م", price: 6360, uom: "Roll", type: "product", attrs: "النوع:Film B Lamination, العرض:0.32m" },
+        { code: "1768717961-256", name: "ورق فنايل فيلم DTF", price: 0, uom: "Roll", type: "product", attrs: "النوع:DTF Film Vinyl, الطول:100m, العرض:30cm" },
+        { code: "1768717961-257", name: "ورق فنايل فيلم DTF", price: 15900, uom: "Roll", type: "product", attrs: "النوع:DTF Film Vinyl, الطول:100m, العرض:30cm" },
+        { code: "1768717961-258", name: "ورق فنايل فيلم DTF", price: 29150, uom: "Roll", type: "product", attrs: "النوع:DTF Film Vinyl, الطول:100m, العرض:30cm" },
+        { code: "1768717999-266", name: "لاصق وجهين لبراويز الصور", price: 0, uom: "Roll", type: "product", attrs: "النوع:Double Sided Tape, الطول:50m" },
+        { code: "1768717999-267", name: "لاصق وجهين لبراويز الصور", price: 11501, uom: "Roll", type: "product", attrs: "النوع:Double Sided Tape, الطول:50m" },
+        { code: "1768717999-268", name: "لاصق وجهين لبراويز الصور", price: 23002, uom: "Roll", type: "product", attrs: "النوع:Double Sided Tape, الطول:50m" },
+        { code: "1768718009-269", name: "فاين تغطيه رؤوس", price: 0, uom: "Bag", type: "product", attrs: "النوع:Head Cover Wipes, الكمية:50pcs" },
+        { code: "1768718078-270", name: "بنر لماع بالمتر", price: 0, uom: "m", type: "product", attrs: "النوع:Glossy Banner" },
+        { code: "1768718092-293", name: "حبر فلورا 35PL", price: 0, uom: "Can", type: "product", attrs: "الماركة:Flora 35PL, الحجم:5L" },
+        { code: "1768718101-295", name: "مكبس فنايل 4X1", price: 0, uom: "Piece", type: "product", attrs: "النوع:Vinyl Press 4x1" },
+        { code: "1768718110-296", name: "مكبس فنايل 38X38", price: 0, uom: "Piece", type: "product", attrs: "النوع:Vinyl Press, المقاس:38x38cm" },
+        { code: "1768718194-305", name: "لي حبر 8 منافذ طابعه 4 × 2.2 ايكوسلفنت سكاي كلر وكاله", price: 0, uom: "m", type: "product", attrs: "النوع:Ink Tube 8-port" },
+        { code: "1768718202-306", name: "كيبل داتا 31 خط A 40×32 DX5", price: 0, uom: "Piece", type: "product", attrs: "النوع:Data Cable 31pin, الموديل:DX5" },
+        { code: "1768718210-307", name: "كيبل داتا 29 خط A 40×30 ـ XP600", price: 0, uom: "Piece", type: "product", attrs: "النوع:Data Cable 29pin, الموديل:XP600" },
+        { code: "1768718217-308", name: "قماش طباعة ايكوسولفنت اعلام 1.52 م", price: 0, uom: "Roll", type: "product", attrs: "النوع:Flag Fabric EcoSolvent, العرض:1.52m" },
+        { code: "1768718225-309", name: "سلك نحاس صافي 1 ملي بطول 25 متر عالي الجودة", price: 0, uom: "Roll", type: "product", attrs: "النوع:Copper Wire 1mm, الطول:25m" },
+        { code: "1768718237-310", name: "سلفان / لكر", price: 0, uom: "Piece", type: "product", attrs: "النوع:Cellophane/Lacquer" },
+        { code: "1768718244-311", name: "راس طابعه XP600", price: 0, uom: "Piece", type: "product", attrs: "الموديل:Printhead XP600" },
     ];
 
     return rawData.map(item => {
+        let finalName = item.name;
+        let finalAttrsString = item.attrs || "";
+
+        // --- APPLY LOGIC: Forex Thickness ---
+        if (finalName.includes("لوح فوركس ابيض 122×244 سم")) {
+            const thickness = inferForexThickness(item.price);
+            if (thickness) {
+                // Check if thickness is already in attributes to avoid dups
+                if (!finalAttrsString.includes("السمك")) {
+                    finalAttrsString = finalAttrsString ? `${finalAttrsString}, السمك:${thickness}` : `السمك:${thickness}`;
+                }
+            }
+        }
+
+        // --- APPLY LOGIC: Vinyl Naming Standardization ---
+        const standardization = standardizeVinylName(finalName, finalAttrsString);
+        if (standardization.newName !== finalName) {
+            finalName = standardization.newName;
+            if (standardization.extraAttr) {
+                 finalAttrsString = finalAttrsString ? `${finalAttrsString}, ${standardization.extraAttr}` : standardization.extraAttr;
+            }
+        }
+
         // Parse attributes string "Key:Val, Key2:Val2"
-        const attributes = item.attrs ? item.attrs.split(',').map(s => {
+        const attributes = finalAttrsString ? finalAttrsString.split(',').map(s => {
             const parts = s.split(':');
             return {
                 name: parts[0]?.trim() || 'Attr',
@@ -308,8 +577,8 @@ export const getDemoData = (): ParsedProduct[] => {
 
         return {
             id: item.code,
-            rawInput: item.name,
-            templateName: item.name,
+            rawInput: item.name, // Keep original name for reference
+            templateName: finalName, // Use standardized name for Template grouping
             defaultCode: item.code,
             uom: item.uom,
             price: item.price,
