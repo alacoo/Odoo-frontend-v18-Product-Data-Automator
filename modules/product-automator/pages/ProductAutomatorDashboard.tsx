@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { ParsedProduct, ProcessingStep, ActiveTab, AppMode, Notification, OdooCurrency, OdooPricelist, SyncCapabilities, AiSuggestion } from '../types';
+import { ParsedProduct, ProcessingStep, ActiveTab, AppMode, Notification, OdooCurrency, OdooPricelist, SyncCapabilities } from '../types';
 import { ProductTable } from '../components/ProductTable';
 import { AttributeManager } from '../components/AttributeManager';
 import { TemplateManager } from '../components/TemplateManager';
@@ -19,7 +19,6 @@ import { ConnectionManager } from '../components/ConnectionManager';
 import { MigrationManager } from '../components/MigrationManager';
 import { PricelistManager } from '../components/PricelistManager';
 import { DashboardStats } from '../components/DashboardStats';
-import { AiOrganizer } from '../components/AiOrganizer';
 import { getDemoData, DEFAULT_RATES } from '../data/demoData';
 import { 
     authenticateOdoo, 
@@ -58,10 +57,6 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
   
   const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-
-  // AI Organizer State
-  const [showAiOrganizer, setShowAiOrganizer] = useState(false);
-  const [aiSelectedIds, setAiSelectedIds] = useState<Set<string>>(new Set());
 
   // Permissions State
   const [capabilities, setCapabilities] = useState<SyncCapabilities>({
@@ -303,23 +298,6 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
       }));
   };
 
-  // AI Logic
-  const handleApplyAiChanges = (suggestions: AiSuggestion[]) => {
-      setParsedProducts(prev => prev.map(p => {
-          const suggestion = suggestions.find(s => s.id === p.id);
-          if (suggestion) {
-              return {
-                  ...p,
-                  templateName: suggestion.suggestedTemplate,
-                  attributes: suggestion.attributes
-              };
-          }
-          return p;
-      }));
-      addNotification('success', 'AI Updated', `Optimized ${suggestions.length} products successfully.`);
-  };
-
-
   // Update stats 
   const stats = useMemo(() => {
     const usd = currencies.find(c => c.name === 'USD');
@@ -353,14 +331,6 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
   return (
       <div className="flex h-full bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 overflow-hidden transition-colors duration-200 font-sans">
         
-        {/* AI Organizer Modal */}
-        <AiOrganizer 
-            open={showAiOrganizer} 
-            onClose={() => { setShowAiOrganizer(false); setAiSelectedIds(new Set()); }}
-            selectedProducts={parsedProducts.filter(p => aiSelectedIds.has(p.id))}
-            onApplyChanges={handleApplyAiChanges}
-        />
-
         {/* Navigation Sidebar */}
         <aside 
             className={`
@@ -606,15 +576,6 @@ const ProductAutomatorDashboard: React.FC<ProductAutomatorDashboardProps> = ({
                                                     <Languages size={14} /> Migration Tool
                                                 </button>
                                             )}
-                                            <button
-                                                onClick={() => {
-                                                    setAiSelectedIds(new Set(selectedIds));
-                                                    setShowAiOrganizer(true);
-                                                }}
-                                                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded text-xs font-semibold transition-colors"
-                                            >
-                                                <Sparkles size={14} /> AI Organize
-                                            </button>
                                         </>
                                     )}
                                 />
